@@ -1,0 +1,169 @@
+{% extends "templates/web.html" %}
+{% block title %}审核提案{% endblock %}
+{% block page_content %}
+<body class="kaizen-page">
+<link rel="stylesheet" href="/assets/kaizen/css/kaizen.css">
+<div class="kz-navbar">
+  <span class="kz-navbar-back" onclick="history.back()">‹ 返回</span>
+  <span class="kz-navbar-title">提案审核</span>
+  <span style="width:48px"></span>
+</div>
+<div style="padding:12px 16px 120px;" id="review-form-content">
+  <div class="kz-loading"><div class="kz-spinner"></div><div>加载中...</div></div>
+</div>
+<div style="position:fixed;bottom:0;left:0;right:0;background:#fff;padding:12px 16px;border-top:1px solid #e8e8e8;display:flex;gap:10px;">
+  <button class="kz-btn kz-btn-danger" onclick="rejectProposal()" style="flex:0.6;">拒绝</button>
+  <button class="kz-btn kz-btn-primary" onclick="approveProposal()" style="flex:1;">通过并立项</button>
+</div>
+<script src="/assets/kaizen/js/kaizen.js"></script>
+<script>
+const urlParts = window.location.pathname.split('/');
+const proposalName = urlParts[urlParts.length - 1];
+
+async function init() {
+  const container = document.getElementById('review-form-content');
+  try {
+    const resp = await frappe.call({ method: 'frappe.client.get', args: { doctype: 'Kaizen Proposal', name: proposalName } });
+    const d = resp.message;
+    container.innerHTML = `
+      <!-- 提案原文 -->
+      <div class="kz-form-section">
+        <div class="kz-form-section-title">提案信息</div>
+        <div class="kz-form-item"><div class="kz-form-label">提案编号</div><div>${d.name}</div></div>
+        <div class="kz-form-item"><div class="kz-form-label">精益类型</div><div>${d.kaizen_type || '-'}</div></div>
+        <div class="kz-form-item"><div class="kz-form-label">提交人</div><div>${d.submitted_by || '-'}</div></div>
+        <div class="kz-form-item" style="flex-direction:column;">
+          <div class="kz-form-label" style="margin-bottom:6px;">待改善现象</div>
+          <div style="background:#f5f5f5;padding:10px;border-radius:8px;font-size:14px;">${d.phenomenon || '-'}</div>
+        </div>
+        ${d.suggestion ? `<div class="kz-form-item" style="flex-direction:column;">
+          <div class="kz-form-label" style="margin-bottom:6px;">改善建议</div>
+          <div style="background:#f5f5f5;padding:10px;border-radius:8px;font-size:14px;">${d.suggestion}</div>
+        </div>` : ''}
+      </div>
+
+      <!-- 审核评分 -->
+      <div class="kz-form-section">
+        <div class="kz-form-section-title">审核评估</div>
+        <div class="kz-form-item">
+          <div class="kz-form-label required">紧迫性</div>
+          <div class="kz-form-control">
+            <select id="r-urgency" class="kz-select">
+              <option value="">请选择</option>
+              <option value="低">低</option><option value="中">中</option><option value="高">高</option>
+            </select>
+          </div>
+        </div>
+        <div class="kz-form-item">
+          <div class="kz-form-label required">经济性</div>
+          <div class="kz-form-control">
+            <select id="r-economic" class="kz-select">
+              <option value="">请选择</option>
+              <option value="低">低</option><option value="中">中</option><option value="高">高</option>
+            </select>
+          </div>
+        </div>
+        <div class="kz-form-item">
+          <div class="kz-form-label required">质量影响</div>
+          <div class="kz-form-control">
+            <select id="r-quality" class="kz-select">
+              <option value="">请选择</option>
+              <option value="低">低</option><option value="中">中</option><option value="高">高</option>
+            </select>
+          </div>
+        </div>
+        <div class="kz-form-item" style="flex-direction:column;">
+          <div class="kz-form-label" style="margin-bottom:6px;">预期改进目标（人/物/财）</div>
+          <textarea id="r-target" class="kz-textarea" style="min-height:80px;" placeholder="例：节省人工2人/月，减少废品率5%"></textarea>
+        </div>
+        <div class="kz-form-item">
+          <div class="kz-form-label">预期完成日期</div>
+          <div class="kz-form-control">
+            <input id="r-date" class="kz-input" type="date">
+          </div>
+        </div>
+      </div>
+
+      <!-- 实施部门 -->
+      <div class="kz-form-section">
+        <div class="kz-form-section-title">指定实施部门</div>
+        <div id="dept-list">
+          <div class="kz-form-item" style="flex-direction:column;gap:8px;">
+            <input class="kz-input dept-input" type="text" placeholder="部门名称（如：生产部）">
+            <input class="kz-input person-input" type="text" placeholder="负责人">
+          </div>
+        </div>
+        <div style="padding:8px 16px;">
+          <button class="kz-btn kz-btn-outline" onclick="addDeptRow()" style="width:auto;padding:8px 16px;font-size:13px;">+ 添加部门</button>
+        </div>
+      </div>
+
+      <!-- 审核意见 -->
+      <div class="kz-form-section">
+        <div class="kz-form-section-title">审核意见</div>
+        <div class="kz-form-item" style="flex-direction:column;">
+          <textarea id="r-comment" class="kz-textarea" placeholder="审核意见（可选）"></textarea>
+        </div>
+      </div>
+    `;
+  } catch(e) {
+    document.getElementById('review-form-content').innerHTML = '<div class="kz-empty">⚠️ 加载失败</div>';
+  }
+}
+
+function addDeptRow() {
+  const list = document.getElementById('dept-list');
+  const div = document.createElement('div');
+  div.className = 'kz-form-item';
+  div.style.cssText = 'flex-direction:column;gap:8px;';
+  div.innerHTML = `
+    <input class="kz-input dept-input" type="text" placeholder="部门名称">
+    <input class="kz-input person-input" type="text" placeholder="负责人">
+  `;
+  list.appendChild(div);
+}
+
+async function approveProposal() {
+  const urgency = document.getElementById('r-urgency')?.value;
+  const economic = document.getElementById('r-economic')?.value;
+  const quality = document.getElementById('r-quality')?.value;
+  if (!urgency || !economic || !quality) { KaizenUtils.toast('请完整填写评估维度'); return; }
+
+  const depts = [];
+  const deptInputs = document.querySelectorAll('.dept-input');
+  const personInputs = document.querySelectorAll('.person-input');
+  deptInputs.forEach((inp, i) => {
+    if (inp.value.trim()) {
+      depts.push({ department: inp.value.trim(), responsible_person: personInputs[i]?.value.trim() || '' });
+    }
+  });
+
+  const data = {
+    proposal_name: proposalName,
+    urgency, economic_value: economic, quality_impact: quality,
+    improvement_target: document.getElementById('r-target')?.value || '',
+    expected_completion_date: document.getElementById('r-date')?.value || '',
+    review_comment: document.getElementById('r-comment')?.value || '',
+    departments: depts,
+  };
+  try {
+    const result = await KaizenUtils.call('kaizen.kaizen.api.kaizen_api.approve_proposal', { data: JSON.stringify(data) });
+    KaizenUtils.toast('审核通过，已创建改善项目：' + result.project_name);
+    setTimeout(() => KaizenUtils.goto('/kaizen-review'), 1500);
+  } catch(e) { KaizenUtils.toast('操作失败'); }
+}
+
+async function rejectProposal() {
+  const reason = prompt('请输入拒绝原因：');
+  if (reason === null) return;
+  try {
+    await KaizenUtils.call('kaizen.kaizen.api.kaizen_api.reject_proposal', { proposal_name: proposalName, reason });
+    KaizenUtils.toast('已拒绝提案');
+    setTimeout(() => KaizenUtils.goto('/kaizen-review'), 1200);
+  } catch(e) { KaizenUtils.toast('操作失败'); }
+}
+
+init();
+</script>
+</body>
+{% endblock %}

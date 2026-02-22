@@ -1,0 +1,88 @@
+{% extends "templates/web.html" %}
+{% block title %}改善提案{% endblock %}
+{% block page_content %}
+<body class="kaizen-page">
+<link rel="stylesheet" href="/assets/kaizen/css/kaizen.css">
+
+<div class="kz-navbar">
+  <span class="kz-navbar-back" onclick="KaizenUtils.goto('/kaizen-home')">‹ 精益</span>
+  <span class="kz-navbar-title">改善提案</span>
+  <span class="kz-navbar-action" onclick="KaizenUtils.goto('/kaizen-proposal-new')">+ 新建</span>
+</div>
+
+<div style="padding:12px 16px;">
+  <!-- 筛选 -->
+  <div style="background:#fff;border-radius:10px;padding:10px 14px;margin-bottom:12px;display:flex;gap:8px;overflow-x:auto;">
+    <button class="kz-filter-btn active" data-filter="active" onclick="setFilter('active',this)">进行中</button>
+    <button class="kz-filter-btn" data-filter="all" onclick="setFilter('all',this)">全部</button>
+  </div>
+  <div id="proposal-list"><div class="kz-loading"><div class="kz-spinner"></div><div>加载中...</div></div></div>
+</div>
+
+<style>
+.kz-filter-btn {
+  padding: 6px 14px; border-radius: 20px; border: 1px solid #e8e8e8;
+  background: #fff; font-size: 13px; cursor: pointer; white-space: nowrap;
+}
+.kz-filter-btn.active { background: #1677ff; color: #fff; border-color: #1677ff; }
+</style>
+
+<script src="/assets/kaizen/js/kaizen.js"></script>
+<script>
+let currentFilter = 'active';
+
+async function loadList() {
+  const list = document.getElementById('proposal-list');
+  KaizenUtils.showLoading(list);
+  try {
+    const include_closed = currentFilter === 'all' ? 1 : 0;
+    const data = await KaizenUtils.call('kaizen.kaizen.api.kaizen_api.get_my_proposals', { include_closed });
+    if (!data || !data.length) {
+      list.innerHTML = `<div class="kz-empty">
+        <div class="kz-empty-icon">💡</div>
+        <div class="kz-empty-text">还没有提案，点击右上角新建</div>
+      </div>`;
+      return;
+    }
+    list.innerHTML = data.map(p => renderProposalCard(p)).join('');
+  } catch(e) {
+    KaizenUtils.showEmpty(list, '加载失败，请刷新');
+  }
+}
+
+function renderProposalCard(p) {
+  const statusCls = KaizenUtils.statusClass(p.status);
+  const projStatusCls = p.project_status ? KaizenUtils.statusClass(p.project_status) : '';
+  return `
+    <div class="kz-item-card" onclick="KaizenUtils.goto('/kaizen-proposal/${p.name}')">
+      <div class="kz-item-card-row1">
+        <span class="kz-item-no">${p.name}</span>
+        <span class="kz-tag ${statusCls}">${p.status}</span>
+      </div>
+      <div class="kz-item-card-row2">
+        <span class="kz-tag kz-tag-type">${p.kaizen_type || '-'}</span>
+        ${p.project_status ? `<span class="kz-tag ${projStatusCls}">${p.project_status}</span>` : ''}
+      </div>
+      <div style="font-size:13px;color:#666;margin-bottom:4px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">
+        ${p.phenomenon ? p.phenomenon.substring(0,40) + (p.phenomenon.length > 40 ? '...' : '') : ''}
+      </div>
+      <div style="display:flex;justify-content:space-between;font-size:12px;color:#999;">
+        <span>${p.departments ? '责任部门：' + p.departments : ''}</span>
+        <span>${KaizenUtils.formatDate(p.submitted_date || p.creation)}</span>
+      </div>
+      ${p.kaizen_project ? `<div style="font-size:12px;color:#1677ff;margin-top:4px;">改善项目：${p.kaizen_project}</div>` : ''}
+    </div>
+  `;
+}
+
+function setFilter(filter, btn) {
+  currentFilter = filter;
+  document.querySelectorAll('.kz-filter-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  loadList();
+}
+
+loadList();
+</script>
+</body>
+{% endblock %}

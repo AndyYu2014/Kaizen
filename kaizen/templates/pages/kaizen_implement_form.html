@@ -1,0 +1,106 @@
+{% extends "templates/web.html" %}
+{% block title %}改善实施{% endblock %}
+{% block page_content %}
+<body class="kaizen-page">
+<link rel="stylesheet" href="/assets/kaizen/css/kaizen.css">
+<div class="kz-navbar">
+  <span class="kz-navbar-back" onclick="history.back()">‹ 返回</span>
+  <span class="kz-navbar-title">改善实施</span>
+  <span style="width:48px"></span>
+</div>
+<div style="padding:12px 16px 100px;" id="impl-content">
+  <div class="kz-loading"><div class="kz-spinner"></div><div>加载中...</div></div>
+</div>
+<div style="position:fixed;bottom:0;left:0;right:0;background:#fff;padding:12px 16px;border-top:1px solid #e8e8e8;">
+  <button class="kz-btn kz-btn-primary" onclick="submitImpl()">提交实施结果</button>
+</div>
+<script src="/assets/kaizen/js/kaizen.js"></script>
+<script>
+const urlParts = window.location.pathname.split('/');
+const projectName = urlParts[urlParts.length - 1];
+
+async function init() {
+  if (projectName === 'list') { loadImplList(); return; }
+  const container = document.getElementById('impl-content');
+  try {
+    const resp = await frappe.call({ method: 'frappe.client.get', args: { doctype: 'Kaizen Project', name: projectName } });
+    const d = resp.message;
+    container.innerHTML = `
+      <div class="kz-form-section">
+        <div class="kz-form-section-title">项目信息</div>
+        <div class="kz-form-item"><div class="kz-form-label">项目编号</div><div>${d.name}</div></div>
+        <div class="kz-form-item"><div class="kz-form-label">临时措施</div><div style="font-size:13px;color:#666;">${d.temporary_measure || '-'}</div></div>
+        <div class="kz-form-item"><div class="kz-form-label">永久措施</div><div style="font-size:13px;color:#666;">${d.permanent_measure || '-'}</div></div>
+      </div>
+
+      <div class="kz-form-section">
+        <div class="kz-form-section-title">实施记录</div>
+        <div class="kz-form-item">
+          <div class="kz-form-label required">实际开始</div>
+          <div class="kz-form-control"><input id="i-start" class="kz-input" type="date" value="${d.actual_start_date || ''}"></div>
+        </div>
+        <div class="kz-form-item">
+          <div class="kz-form-label required">实际完成</div>
+          <div class="kz-form-control"><input id="i-end" class="kz-input" type="date" value="${d.actual_end_date || ''}"></div>
+        </div>
+        <div class="kz-form-item" style="flex-direction:column;">
+          <div class="kz-form-label required" style="margin-bottom:6px;">实施效果描述</div>
+          <textarea id="i-result" class="kz-textarea" placeholder="描述实施结果和改善效果（可语音输入）">${d.implementation_result || ''}</textarea>
+        </div>
+        <div class="kz-form-item" style="flex-direction:column;">
+          <div class="kz-form-label" style="margin-bottom:6px;">实施结果附件</div>
+          <div class="kz-upload-area" onclick="document.getElementById('i-file').click()">
+            <div class="kz-upload-icon">📷</div>
+            <div class="kz-upload-hint">点击添加实施前后对比图片/视频</div>
+            <input type="file" id="i-file" style="display:none" accept="image/*,video/*" multiple>
+          </div>
+        </div>
+      </div>
+    `;
+  } catch(e) {
+    document.getElementById('impl-content').innerHTML = '<div class="kz-empty">⚠️ 加载失败</div>';
+  }
+}
+
+async function loadImplList() {
+  const container = document.getElementById('impl-content');
+  document.querySelector('.kz-navbar-title').textContent = '改善实施列表';
+  document.querySelector('[onclick="submitImpl()"]').style.display = 'none';
+  try {
+    const data = await KaizenUtils.call('kaizen.kaizen.api.kaizen_api.get_pending_implement_projects');
+    if (!data || !data.length) {
+      container.innerHTML = `<div class="kz-empty"><div class="kz-empty-icon">✅</div><div>暂无待实施项目</div></div>`;
+      return;
+    }
+    container.innerHTML = data.map(p => `
+      <div class="kz-item-card" onclick="KaizenUtils.goto('/kaizen-implement/${p.name}')">
+        <div class="kz-item-card-row1">
+          <span class="kz-item-no">${p.name}</span>
+          <span class="kz-tag kz-tag-status-implementing">实施中</span>
+        </div>
+        <div style="font-size:14px;font-weight:600;margin-bottom:4px;">${p.title || '-'}</div>
+        <div style="font-size:12px;color:#999;">计划完成：${KaizenUtils.formatDate(p.plan_end_date)}</div>
+      </div>
+    `).join('');
+  } catch(e) { container.innerHTML = '<div class="kz-empty">加载失败</div>'; }
+}
+
+async function submitImpl() {
+  const start = document.getElementById('i-start')?.value;
+  const end = document.getElementById('i-end')?.value;
+  const result = document.getElementById('i-result')?.value;
+  if (!start) { KaizenUtils.toast('请填写实际开始日期'); return; }
+  if (!result) { KaizenUtils.toast('请填写实施效果描述'); return; }
+  try {
+    await KaizenUtils.call('kaizen.kaizen.api.kaizen_api.submit_implementation', {
+      data: JSON.stringify({ project_name: projectName, actual_start_date: start, actual_end_date: end, implementation_result: result })
+    });
+    KaizenUtils.toast('实施结果已提交，进入评价阶段！');
+    setTimeout(() => KaizenUtils.goto('/kaizen-home'), 1500);
+  } catch(e) { KaizenUtils.toast('提交失败'); }
+}
+
+init();
+</script>
+</body>
+{% endblock %}

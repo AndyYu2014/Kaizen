@@ -1,0 +1,72 @@
+---
+no_cache: 1
+---
+
+{% extends "templates/web.html" %}
+{% block title %}改善提案{% endblock %}
+
+{% block page_content %}
+<div class="kz-page" id="kz-proposal-list">
+
+  <div class="kz-header">
+    <a href="/kaizen-home" class="back-btn">‹</a>
+    <span class="title">改善提案</span>
+    <button class="action-btn" onclick="KZ.goTo('/kaizen-proposal-new')">+ 新建</button>
+  </div>
+
+  <!-- 筛选栏 -->
+  <div style="background:#fff;padding:10px 16px;border-bottom:1px solid #e8e8e8;">
+    <select class="kz-select" id="filter-status" onchange="loadList()" style="width:auto;display:inline-block;min-width:120px;">
+      <option value="">全部状态</option>
+      <option value="待提交">待提交</option>
+      <option value="已提交">已提交</option>
+      <option value="已立项">已立项</option>
+      <option value="已取消">已取消</option>
+    </select>
+  </div>
+
+  <div class="kz-content" style="padding-top:10px;">
+    <div id="list-container">
+      <div class="kz-loading">加载中...</div>
+    </div>
+  </div>
+</div>
+
+<script>
+document.addEventListener("DOMContentLoaded", loadList);
+
+function loadList() {
+  const status = document.getElementById("filter-status").value;
+  const includeAll = status === "已立项" || status === "已取消" ? 1 : 0;
+
+  KZ.api("kaizen.api.kaizen_api.get_my_proposals", { include_closed: includeAll })
+    .then(data => {
+      let items = data || [];
+      if (status) items = items.filter(i => i.status === status);
+
+      const container = document.getElementById("list-container");
+      if (!items.length) {
+        KZ.showEmpty(container, "暂无提案，点击右上角新建");
+        return;
+      }
+
+      container.innerHTML = items.map(item => `
+        <div class="kz-list-item" onclick="KZ.goTo('/kaizen-proposal-detail?name=${item.name}')">
+          <div class="item-header">
+            <span class="item-no">${item.name}</span>
+            <span class="item-date">${KZ.formatDate(item.submitted_date)}</span>
+          </div>
+          <div class="item-desc">${item.phenomenon_description || "（无描述）"}</div>
+          <div class="item-footer">
+            ${KZ.tag(item.status)}
+            ${item.kaizen_type ? `<span class="kz-tag type">📌 ${item.kaizen_type}</span>` : ""}
+            ${item.kaizen_project ? `<span class="kz-tag approved">🔗 ${item.kaizen_project}</span>` : ""}
+            ${item.project_status ? KZ.tag(item.project_status) : ""}
+            ${item.dept ? `<span class="kz-tag type">🏢 ${item.dept}</span>` : ""}
+          </div>
+        </div>
+      `).join("");
+    });
+}
+</script>
+{% endblock %}

@@ -1,0 +1,195 @@
+---
+no_cache: 1
+---
+
+{% extends "templates/web.html" %}
+{% block title %}精益报表{% endblock %}
+
+{% block page_content %}
+<div class="kz-page">
+
+  <div class="kz-header">
+    <a href="/kaizen-home" class="back-btn">‹</a>
+    <span class="title">精益报表</span>
+  </div>
+
+  <!-- 报表切换 -->
+  <div style="background:#fff;padding:10px 16px;border-bottom:1px solid #e8e8e8;display:flex;gap:8px;overflow-x:auto;">
+    <button class="rpt-tab active" data-type="my" onclick="switchTab(this, 'my')">我的改善</button>
+    <button class="rpt-tab" data-type="dept" onclick="switchTab(this, 'dept')">部门统计</button>
+    <button class="rpt-tab" data-type="board" onclick="switchTab(this, 'board')">进度看板</button>
+    <button class="rpt-tab" data-type="excellent" onclick="switchTab(this, 'excellent')">优秀改善榜</button>
+  </div>
+
+  <div class="kz-content" id="report-container">
+    <div class="kz-loading">加载中...</div>
+  </div>
+
+</div>
+
+<style>
+.rpt-tab {
+  padding: 7px 16px;
+  border: 1.5px solid #e8e8e8;
+  border-radius: 16px;
+  background: #fff;
+  font-size: 13px;
+  cursor: pointer;
+  color: #666;
+  white-space: nowrap;
+  transition: all 0.2s;
+}
+.rpt-tab.active { background: var(--primary); border-color: var(--primary); color: #fff; }
+</style>
+
+<script>
+let currentType = "";
+
+document.addEventListener("DOMContentLoaded", function() {
+  const urlType = KZ.getParam("type") || "my";
+  const btn = document.querySelector(`[data-type="${urlType}"]`);
+  if (btn) {
+    document.querySelectorAll(".rpt-tab").forEach(b => b.classList.remove("active"));
+    btn.classList.add("active");
+  }
+  loadReport(urlType);
+});
+
+function switchTab(btn, type) {
+  document.querySelectorAll(".rpt-tab").forEach(b => b.classList.remove("active"));
+  btn.classList.add("active");
+  loadReport(type);
+}
+
+function loadReport(type) {
+  currentType = type;
+  const container = document.getElementById("report-container");
+  KZ.showLoading(container);
+
+  if (type === "my") renderMyReport(container);
+  else if (type === "dept") renderDeptReport(container);
+  else if (type === "board") renderBoard(container);
+  else if (type === "excellent") renderExcellent(container);
+}
+
+function renderMyReport(container) {
+  KZ.api("kaizen.api.kaizen_api.get_my_report").then(data => {
+    if (!data || !data.length) { KZ.showEmpty(container, "您还没有提交过提案"); return; }
+
+    const counts = {};
+    data.forEach(d => { counts[d.status] = (counts[d.status] || 0) + 1; });
+
+    container.innerHTML = `
+      <div class="kz-card">
+        <div class="kz-card-title">📊 我的提案汇总</div>
+        <div class="kz-stat-grid">
+          <div class="kz-stat-card"><div class="label">总计</div><div class="value">${data.length}</div></div>
+          <div class="kz-stat-card success"><div class="label">已立项</div><div class="value">${counts["已立项"]||0}</div></div>
+          <div class="kz-stat-card warning"><div class="label">处理中</div><div class="value">${(counts["待提交"]||0)+(counts["已提交"]||0)}</div></div>
+          <div class="kz-stat-card"><div class="label">已取消</div><div class="value">${counts["已取消"]||0}</div></div>
+        </div>
+      </div>
+      <div class="kz-card">
+        <div class="kz-card-title">📋 提案明细</div>
+        <div style="overflow-x:auto;">
+          <table class="kz-report-table">
+            <thead>
+              <tr><th>编号</th><th>类型</th><th>状态</th><th>提交日期</th></tr>
+            </thead>
+            <tbody>
+              ${data.map(d => `
+                <tr>
+                  <td style="color:var(--primary);font-size:12px;">${d.name}</td>
+                  <td>${d.kaizen_type || "-"}</td>
+                  <td>${KZ.tag(d.status)}</td>
+                  <td style="font-size:12px;">${KZ.formatDate(d.submitted_date)}</td>
+                </tr>
+              `).join("")}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    `;
+  });
+}
+
+function renderDeptReport(container) {
+  KZ.api("kaizen.api.kaizen_api.get_department_report").then(data => {
+    if (!data || !data.length) { KZ.showEmpty(container, "暂无部门数据"); return; }
+    container.innerHTML = `
+      <div class="kz-card">
+        <div class="kz-card-title">🏢 部门改善统计</div>
+        <div style="overflow-x:auto;">
+          <table class="kz-report-table">
+            <thead>
+              <tr><th>部门</th><th>项目数</th><th>已完成</th><th>平均星级</th></tr>
+            </thead>
+            <tbody>
+              ${data.map(d => `
+                <tr>
+                  <td>${d.department}</td>
+                  <td style="text-align:center;">${d.project_count}</td>
+                  <td style="text-align:center;">${d.closed_count}</td>
+                  <td style="text-align:center;">${d.avg_rating ? parseFloat(d.avg_rating).toFixed(1) + " ⭐" : "-"}</td>
+                </tr>
+              `).join("")}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    `;
+  });
+}
+
+function renderBoard(container) {
+  KZ.api("kaizen.api.kaizen_api.get_status_dashboard").then(data => {
+    const pStats = (data.proposals || []).reduce((m, d) => { m[d.status] = d.count; return m; }, {});
+    const jStats = (data.projects || []).reduce((m, d) => { m[d.status] = d.count; return m; }, {});
+
+    container.innerHTML = `
+      <div class="kz-card">
+        <div class="kz-card-title">📋 改善提案状态</div>
+        <div class="kz-stat-grid">
+          <div class="kz-stat-card"><div class="label">待提交</div><div class="value">${pStats["待提交"]||0}</div></div>
+          <div class="kz-stat-card warning"><div class="label">已提交</div><div class="value">${pStats["已提交"]||0}</div></div>
+          <div class="kz-stat-card success"><div class="label">已立项</div><div class="value">${pStats["已立项"]||0}</div></div>
+          <div class="kz-stat-card"><div class="label">已取消</div><div class="value">${pStats["已取消"]||0}</div></div>
+        </div>
+      </div>
+      <div class="kz-card">
+        <div class="kz-card-title">🚀 改善项目状态</div>
+        <div class="kz-stat-grid">
+          <div class="kz-stat-card warning"><div class="label">方案编制中</div><div class="value">${jStats["方案编制中"]||0}</div></div>
+          <div class="kz-stat-card"><div class="label">实施中</div><div class="value">${jStats["实施中"]||0}</div></div>
+          <div class="kz-stat-card"><div class="label">评价中</div><div class="value">${jStats["评价中"]||0}</div></div>
+          <div class="kz-stat-card success"><div class="label">已关闭</div><div class="value">${jStats["已关闭"]||0}</div></div>
+        </div>
+      </div>
+    `;
+  });
+}
+
+function renderExcellent(container) {
+  KZ.api("kaizen.api.kaizen_api.get_excellent_list").then(data => {
+    if (!data || !data.length) { KZ.showEmpty(container, "暂无4星以上优秀改善"); return; }
+    container.innerHTML = `
+      <div class="kz-card">
+        <div class="kz-card-title">🏆 优秀改善榜（4星以上）</div>
+        ${data.map((d, i) => `
+          <div style="padding:12px 0;${i>0?"border-top:1px solid #f0f0f0":""}">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+              <span style="font-weight:600;color:var(--primary);font-size:13px;">${d.project_no || d.name}</span>
+              <span style="color:#faad14;font-size:16px;">${"★".repeat(parseInt(d.star_rating))}</span>
+            </div>
+            <div style="font-size:12px;color:#999;margin-bottom:6px;">${d.kaizen_type || ""} · 完成：${KZ.formatDate(d.actual_completion_date)}</div>
+            <div style="font-size:13px;color:#555;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;">
+              ${d.implement_result || ""}
+            </div>
+          </div>
+        `).join("")}
+      </div>
+    `;
+  });
+}
+</script>
+{% endblock %}

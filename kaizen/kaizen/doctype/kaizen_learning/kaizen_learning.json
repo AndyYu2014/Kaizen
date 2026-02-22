@@ -1,0 +1,78 @@
+{
+  "name": "Kaizen Learning",
+  "module": "Kaizen",
+  "doctype": "DocType",
+  "naming_rule": "By fieldname",
+  "autoname": "field:title",
+  "description": "精益课堂 - 学习文章和优秀案例",
+  "title_field": "title",
+  "fields": [
+    {
+      "fieldname": "title",
+      "fieldtype": "Data",
+      "label": "标题",
+      "reqd": 1,
+      "in_list_view": 1
+    },
+    {
+      "fieldname": "category",
+      "fieldtype": "Select",
+      "label": "类别",
+      "options": "优秀案例\n外部企业案例\n行业文章\n精益工具介绍",
+      "in_list_view": 1,
+      "in_standard_filter": 1
+    },
+    {
+      "fieldname": "source_project",
+      "fieldtype": "Link",
+      "label": "来源改善项目",
+      "options": "Kaizen Project",
+      "description": "若为内部优秀案例，关联原改善项目"
+    },
+    {
+      "fieldname": "col_break_1",
+      "fieldtype": "Column Break"
+    },
+    {
+      "fieldname": "author",
+      "fieldtype": "Data",
+      "label": "作者/来源"
+    },
+    {
+      "fieldname": "publish_date",
+      "fieldtype": "Date",
+      "label": "发布日期"
+    },
+    {
+      "fieldname": "is_featured",
+      "fieldtype": "Check",
+      "label": "推荐展示",
+      "default": "0"
+    },
+    {
+      "fieldname": "cover_image",
+      "fieldtype": "Attach Image",
+      "label": "封面图片"
+    },
+    {
+      "fieldname": "summary",
+      "fieldtype": "Text",
+      "label": "摘要"
+    },
+    {
+      "fieldname": "content",
+      "fieldtype": "Text Editor",
+      "label": "内容"
+    },
+    {
+      "fieldname": "attachments",
+      "fieldtype": "Attach",
+      "label": "附件"
+    }
+  ],
+  "permissions": [
+    {"role": "System Manager", "read": 1, "write": 1, "create": 1, "delete": 1},
+    {"role": "All", "read": 1}
+  ],
+  "track_changes": 1
+}

@@ -1,0 +1,135 @@
+---
+no_cache: 1
+---
+
+{% extends "templates/web.html" %}
+{% block title %}精益小课堂{% endblock %}
+
+{% block page_content %}
+<div class="kz-page">
+
+  <div class="kz-header">
+    <a href="/kaizen-home" class="back-btn">‹</a>
+    <span class="title">精益小课堂</span>
+  </div>
+
+  <!-- 分类筛选 -->
+  <div style="background:#fff;padding:10px 16px;border-bottom:1px solid #e8e8e8;overflow-x:auto;white-space:nowrap;">
+    <button class="cat-btn active" data-cat="" onclick="filterCat(this, '')">全部</button>
+    <button class="cat-btn" data-cat="优秀案例" onclick="filterCat(this, '优秀案例')">🏅 优秀案例</button>
+    <button class="cat-btn" data-cat="外部企业案例" onclick="filterCat(this, '外部企业案例')">🌐 外部案例</button>
+    <button class="cat-btn" data-cat="精益知识" onclick="filterCat(this, '精益知识')">📚 精益知识</button>
+    <button class="cat-btn" data-cat="网络文章" onclick="filterCat(this, '网络文章')">🔗 网络文章</button>
+  </div>
+
+  <div class="kz-content" id="learning-list-container">
+    <div class="kz-loading">加载中...</div>
+  </div>
+
+  <!-- 详情弹窗 -->
+  <div id="detail-modal" style="display:none;position:fixed;inset:0;background:#fff;z-index:200;overflow-y:auto;">
+    <div class="kz-header">
+      <a href="javascript:closeDetail()" class="back-btn">‹</a>
+      <span class="title" id="detail-title">文章详情</span>
+    </div>
+    <div style="padding:16px;">
+      <div style="margin-bottom:12px;" id="detail-meta"></div>
+      <div id="detail-content" style="font-size:14px;line-height:1.8;color:#333;"></div>
+    </div>
+  </div>
+
+</div>
+
+<style>
+.cat-btn {
+  display: inline-block;
+  padding: 6px 14px;
+  border: 1.5px solid #e8e8e8;
+  border-radius: 16px;
+  background: #fff;
+  font-size: 13px;
+  cursor: pointer;
+  color: #666;
+  margin-right: 8px;
+  transition: all 0.2s;
+}
+.cat-btn.active {
+  background: var(--primary);
+  border-color: var(--primary);
+  color: #fff;
+}
+</style>
+
+<script>
+let currentCat = "";
+
+document.addEventListener("DOMContentLoaded", function() {
+  const urlCat = KZ.getParam("category");
+  if (urlCat) {
+    currentCat = urlCat;
+    document.querySelectorAll(".cat-btn").forEach(b => {
+      b.classList.toggle("active", b.dataset.cat === urlCat);
+    });
+  }
+  loadList();
+});
+
+function filterCat(btn, cat) {
+  document.querySelectorAll(".cat-btn").forEach(b => b.classList.remove("active"));
+  btn.classList.add("active");
+  currentCat = cat;
+  loadList();
+}
+
+function loadList() {
+  const container = document.getElementById("learning-list-container");
+  KZ.showLoading(container);
+
+  KZ.api("kaizen.api.kaizen_api.get_learning_list", { category: currentCat }).then(data => {
+    if (!data || !data.length) { KZ.showEmpty(container, "暂无内容，敬请期待"); return; }
+
+    container.innerHTML = data.map(item => `
+      <div class="kz-learning-card" onclick="showDetail('${item.name}')">
+        <div class="cover" style="background:linear-gradient(135deg,#e6f0ff,#c7d9ff);">
+          ${item.cover_image
+            ? `<img src="${item.cover_image}" style="width:100%;height:100%;object-fit:cover;">`
+            : getCatEmoji(item.category)}
+        </div>
+        <div class="info">
+          <div class="category-tag">${item.category || "精益知识"}</div>
+          <div class="lc-title">${item.title}</div>
+          <div class="meta">
+            <span>📅 ${KZ.formatDate(item.publish_date)}</span>
+            <span>👁 ${item.view_count || 0}</span>
+            ${item.star_rating ? `<span>⭐ ${parseFloat(item.star_rating).toFixed(1)}</span>` : ""}
+          </div>
+        </div>
+      </div>
+    `).join("");
+  });
+}
+
+function getCatEmoji(cat) {
+  const map = { "优秀案例": "🏅", "外部企业案例": "🌐", "精益知识": "📚", "网络文章": "🔗" };
+  return map[cat] || "📖";
+}
+
+function showDetail(name) {
+  KZ.api("kaizen.api.kaizen_api.get_learning_detail", { name: name }).then(data => {
+    document.getElementById("detail-title").textContent = data.title || "文章详情";
+    document.getElementById("detail-meta").innerHTML = `
+      <span class="kz-tag type">${data.category || ""}</span>
+      <span style="font-size:12px;color:#999;margin-left:8px;">📅 ${KZ.formatDate(data.publish_date)}</span>
+      <span style="font-size:12px;color:#999;margin-left:8px;">👁 ${data.view_count || 0} 次浏览</span>
+    `;
+    document.getElementById("detail-content").innerHTML = data.content || "<p style='color:#999;'>（暂无内容）</p>";
+    document.getElementById("detail-modal").style.display = "";
+    window.scrollTo(0, 0);
+  });
+}
+
+function closeDetail() {
+  document.getElementById("detail-modal").style.display = "none";
+}
+</script>
+{% endblock %}

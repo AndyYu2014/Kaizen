@@ -1,0 +1,47 @@
+{% extends "templates/web.html" %}
+{% block title %}提案审核{% endblock %}
+{% block page_content %}
+<body class="kaizen-page">
+<link rel="stylesheet" href="/assets/kaizen/css/kaizen.css">
+<div class="kz-navbar">
+  <span class="kz-navbar-back" onclick="KaizenUtils.goto('/kaizen-home')">‹ 精益</span>
+  <span class="kz-navbar-title">提案审核</span>
+  <span style="width:48px"></span>
+</div>
+<div style="padding:12px 16px;" id="review-list">
+  <div class="kz-loading"><div class="kz-spinner"></div><div>加载中...</div></div>
+</div>
+<script src="/assets/kaizen/js/kaizen.js"></script>
+<script>
+async function loadReviewList() {
+  const list = document.getElementById('review-list');
+  try {
+    const data = await KaizenUtils.call('kaizen.kaizen.api.kaizen_api.get_pending_review_proposals');
+    if (!data || !data.length) {
+      list.innerHTML = `<div class="kz-empty"><div class="kz-empty-icon">✅</div><div class="kz-empty-text">暂无待审核提案</div></div>`;
+      return;
+    }
+    list.innerHTML = data.map(p => `
+      <div class="kz-item-card" onclick="KaizenUtils.goto('/kaizen-review/${p.name}')">
+        <div class="kz-item-card-row1">
+          <span class="kz-item-no">${p.name}</span>
+          <span class="kz-tag kz-tag-status-submitted">待审核</span>
+        </div>
+        <div class="kz-item-card-row2">
+          <span class="kz-tag kz-tag-type">${p.kaizen_type || '-'}</span>
+        </div>
+        <div style="font-size:13px;color:#666;margin-bottom:4px;">
+          ${p.phenomenon ? p.phenomenon.substring(0,50) + '...' : ''}
+        </div>
+        <div style="font-size:12px;color:#999;display:flex;justify-content:space-between;">
+          <span>提交人：${p.submitted_by || '-'}</span>
+          <span>${KaizenUtils.formatDate(p.submitted_date)}</span>
+        </div>
+      </div>
+    `).join('');
+  } catch(e) { KaizenUtils.showEmpty(list, '加载失败'); }
+}
+loadReviewList();
+</script>
+</body>
+{% endblock %}

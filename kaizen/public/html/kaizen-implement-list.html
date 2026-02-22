@@ -1,0 +1,168 @@
+---
+no_cache: 1
+---
+
+{% extends "templates/web.html" %}
+{% block title %}改善实施{% endblock %}
+
+{% block page_content %}
+<div class="kz-page">
+
+  <div id="view-list">
+    <div class="kz-header">
+      <a href="/kaizen-home" class="back-btn">‹</a>
+      <span class="title">改善实施</span>
+    </div>
+    <div class="kz-content">
+      <div id="impl-list-container"><div class="kz-loading">加载中...</div></div>
+    </div>
+  </div>
+
+  <div id="view-detail" style="display:none;">
+    <div class="kz-header">
+      <a href="javascript:showList()" class="back-btn">‹</a>
+      <span class="title">录入实施结果</span>
+    </div>
+    <div class="kz-content">
+
+      <!-- 附件区 -->
+      <div class="kz-card">
+        <div class="kz-card-title">📷 实施现场照片/视频</div>
+        <div style="display:flex;gap:10px;">
+          <label class="kz-upload-area" style="flex:1;" for="impl-upload-img">
+            <div class="icon">📸</div><div class="hint">拍照</div>
+            <input type="file" id="impl-upload-img" accept="image/*" capture="environment" style="display:none;">
+          </label>
+          <label class="kz-upload-area" style="flex:1;" for="impl-upload-vid">
+            <div class="icon">🎥</div><div class="hint">录视频</div>
+            <input type="file" id="impl-upload-vid" accept="video/*" capture="environment" style="display:none;">
+          </label>
+        </div>
+        <div id="impl-preview" style="margin-top:8px;"></div>
+      </div>
+
+      <div class="kz-card">
+        <div class="kz-card-title">🔧 实施信息</div>
+        <div id="impl-project-info"></div>
+
+        <div class="kz-form-group" style="margin-top:12px;">
+          <label class="kz-form-label required">实际开始日期</label>
+          <input type="date" class="kz-input" id="actual_start_date">
+        </div>
+
+        <div class="kz-form-group">
+          <label class="kz-form-label required">实施效果描述</label>
+          <textarea class="kz-textarea" id="implement_result"
+            placeholder="请描述改善实施的效果和结果..." style="min-height:120px;"></textarea>
+        </div>
+      </div>
+
+    </div>
+    <div class="kz-bottom-bar">
+      <button class="kz-btn kz-btn-outline" onclick="saveImpl(false)">保存</button>
+      <button class="kz-btn kz-btn-primary" onclick="saveImpl(true)">提交评价</button>
+    </div>
+  </div>
+
+</div>
+
+<script>
+let currentProject = null;
+
+document.addEventListener("DOMContentLoaded", showList);
+
+function showList() {
+  document.getElementById("view-list").style.display = "";
+  document.getElementById("view-detail").style.display = "none";
+
+  KZ.api("kaizen.api.kaizen_api.get_projects_for_implement").then(data => {
+    const container = document.getElementById("impl-list-container");
+    if (!data || !data.length) { KZ.showEmpty(container, "暂无实施中的项目"); return; }
+    container.innerHTML = data.map(item => `
+      <div class="kz-list-item" onclick="showDetail('${item.name}')">
+        <div class="item-header">
+          <span class="item-no">${item.project_no || item.name}</span>
+          <span class="item-date">截止：${KZ.formatDate(item.plan_end_date)}</span>
+        </div>
+        <div class="item-footer">
+          ${KZ.tag(item.status)}
+          <span class="kz-tag type">${item.kaizen_type || ""}</span>
+        </div>
+      </div>
+    `).join("");
+  });
+}
+
+function showDetail(name) {
+  frappe.call({ method: "frappe.client.get",
+    args: { doctype: "Kaizen Project", name: name }
+  }).then(r => {
+    currentProject = r.message;
+    document.getElementById("view-list").style.display = "none";
+    document.getElementById("view-detail").style.display = "";
+
+    document.getElementById("impl-project-info").innerHTML = `
+      <table style="width:100%;font-size:13px;line-height:2;">
+        <tr><td style="color:#999;width:80px;">项目编号</td><td>${currentProject.project_no || currentProject.name}</td></tr>
+        <tr><td style="color:#999;">临时措施</td><td>${currentProject.temporary_measures || "-"}</td></tr>
+        <tr><td style="color:#999;">永久措施</td><td>${currentProject.permanent_measures || "-"}</td></tr>
+        <tr><td style="color:#999;">计划完成</td><td>${KZ.formatDate(currentProject.plan_end_date)}</td></tr>
+      </table>
+    `;
+
+    document.getElementById("actual_start_date").value = currentProject.actual_start_date || "";
+    document.getElementById("implement_result").value = currentProject.implement_result || "";
+
+    // 初始化上传
+    initImplUpload("impl-upload-img");
+    initImplUpload("impl-upload-vid");
+  });
+}
+
+function initImplUpload(inputId) {
+  document.getElementById(inputId).addEventListener("change", function() {
+    const file = this.files[0];
+    if (!file) return;
+    const formData = new FormData();
+    formData.append("file", file);
+    formData.append("is_private", "0");
+    fetch("/api/method/upload_file", {
+      method: "POST",
+      headers: { "X-Frappe-CSRF-Token": frappe.csrf_token },
+      body: formData
+    }).then(r => r.json()).then(data => {
+      if (data.message) {
+        const url = data.message.file_url;
+        const preview = document.getElementById("impl-preview");
+        if (file.type.startsWith("image/")) {
+          preview.innerHTML += `<img src="${url}" style="width:80px;height:80px;object-fit:cover;border-radius:8px;margin:4px;">`;
+        } else {
+          preview.innerHTML += `<div style="display:inline-flex;align-items:center;gap:4px;background:#f5f5f5;padding:4px 8px;border-radius:6px;margin:4px;font-size:12px;">📎 ${file.name}</div>`;
+        }
+        KZ.toast("上传成功", "success");
+      }
+    });
+  });
+}
+
+function saveImpl(submit) {
+  const startDate = document.getElementById("actual_start_date").value;
+  const result = document.getElementById("implement_result").value.trim();
+
+  if (submit && !startDate) { KZ.toast("请填写实际开始日期", "error"); return; }
+  if (submit && !result) { KZ.toast("请填写实施效果描述", "error"); return; }
+
+  KZ.api("kaizen.api.kaizen_api.save_implement_result", {
+    data: JSON.stringify({
+      project_name: currentProject.name,
+      actual_start_date: startDate,
+      implement_result: result,
+      submit: submit
+    })
+  }).then(() => {
+    KZ.toast(submit ? "已提交，进入评价阶段！" : "保存成功！", "success");
+    setTimeout(showList, 1200);
+  });
+}
+</script>
+{% endblock %}

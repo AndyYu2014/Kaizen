@@ -1,0 +1,4 @@
+include kaizen/templates/**/*.html
+include kaizen/public/**/*.js
+include kaizen/public/**/*.css
+recursive-include kaizen *.json *.js *.css *.html *.py

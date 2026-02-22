@@ -1,0 +1,429 @@
+/* ===== 精益管理移动端全局样式 ===== */
+:root {
+  --primary: #1677ff;
+  --primary-light: #e6f0ff;
+  --success: #52c41a;
+  --warning: #faad14;
+  --danger: #ff4d4f;
+  --text-main: #1a1a1a;
+  --text-sub: #666;
+  --text-hint: #999;
+  --bg-page: #f5f5f5;
+  --bg-card: #ffffff;
+  --border: #e8e8e8;
+  --radius: 12px;
+  --radius-sm: 8px;
+  --shadow: 0 2px 12px rgba(0,0,0,0.08);
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body.kaizen-page {
+  font-family: -apple-system, "PingFang SC", "Helvetica Neue", sans-serif;
+  background: var(--bg-page);
+  color: var(--text-main);
+  font-size: 14px;
+  line-height: 1.6;
+  min-height: 100vh;
+}
+
+/* ─── 顶部导航 ─── */
+.kz-navbar {
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  background: #fff;
+  border-bottom: 1px solid var(--border);
+  height: 52px;
+}
+.kz-navbar-title {
+  font-size: 17px;
+  font-weight: 600;
+  color: var(--text-main);
+}
+.kz-navbar-back {
+  color: var(--primary);
+  font-size: 15px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.kz-navbar-action {
+  color: var(--primary);
+  font-size: 14px;
+  cursor: pointer;
+  font-weight: 500;
+}
+
+/* ─── 卡片 ─── */
+.kz-card {
+  background: var(--bg-card);
+  border-radius: var(--radius);
+  padding: 16px;
+  box-shadow: var(--shadow);
+  margin-bottom: 12px;
+}
+.kz-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 10px;
+}
+.kz-card-title {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text-main);
+}
+.kz-card-sub {
+  font-size: 12px;
+  color: var(--text-sub);
+  margin-top: 2px;
+}
+
+/* ─── 提案/项目列表卡片 ─── */
+.kz-item-card {
+  background: #fff;
+  border-radius: var(--radius);
+  padding: 14px 16px;
+  margin-bottom: 10px;
+  box-shadow: var(--shadow);
+  cursor: pointer;
+  transition: transform 0.15s;
+}
+.kz-item-card:active { transform: scale(0.98); }
+.kz-item-card-row1 {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 6px;
+}
+.kz-item-no {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--primary);
+}
+.kz-item-card-row2 {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 6px;
+}
+.kz-tag {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 20px;
+  font-size: 11px;
+  font-weight: 500;
+}
+.kz-tag-type { background: #e6f0ff; color: var(--primary); }
+.kz-tag-status-pending { background: #fff7e6; color: #d46b08; }
+.kz-tag-status-submitted { background: #e6f7ff; color: #0958d9; }
+.kz-tag-status-approved { background: #f6ffed; color: #389e0d; }
+.kz-tag-status-planning { background: #fff0f6; color: #c41d7f; }
+.kz-tag-status-implementing { background: #e6f7ff; color: #0050b3; }
+.kz-tag-status-evaluating { background: #fffbe6; color: #ad6800; }
+.kz-tag-status-closed { background: #f9f0ff; color: #531dab; }
+.kz-tag-status-cancelled { background: #f5f5f5; color: #8c8c8c; }
+.kz-item-person {
+  font-size: 12px;
+  color: var(--text-sub);
+}
+.kz-item-dept {
+  font-size: 12px;
+  color: var(--text-hint);
+}
+
+/* ─── 统计数字卡片 ─── */
+.kz-stat-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+.kz-stat-card {
+  background: #fff;
+  border-radius: var(--radius);
+  padding: 16px;
+  text-align: center;
+  box-shadow: var(--shadow);
+  cursor: pointer;
+}
+.kz-stat-num {
+  font-size: 28px;
+  font-weight: 700;
+  color: var(--primary);
+  line-height: 1.2;
+}
+.kz-stat-label {
+  font-size: 12px;
+  color: var(--text-sub);
+  margin-top: 4px;
+}
+
+/* ─── 功能入口网格 ─── */
+.kz-menu-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 16px;
+  padding: 16px;
+  background: #fff;
+  border-radius: var(--radius);
+  margin-bottom: 12px;
+}
+.kz-menu-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+}
+.kz-menu-icon {
+  width: 48px;
+  height: 48px;
+  border-radius: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 22px;
+}
+.kz-menu-label {
+  font-size: 11px;
+  color: var(--text-main);
+  text-align: center;
+}
+
+/* ─── 表单 ─── */
+.kz-form-section {
+  background: #fff;
+  border-radius: var(--radius);
+  margin-bottom: 12px;
+  overflow: hidden;
+}
+.kz-form-section-title {
+  padding: 12px 16px 8px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-sub);
+  background: var(--bg-page);
+}
+.kz-form-item {
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+}
+.kz-form-item:last-child { border-bottom: none; }
+.kz-form-label {
+  font-size: 14px;
+  color: var(--text-main);
+  min-width: 90px;
+  flex-shrink: 0;
+  padding-top: 10px;
+}
+.kz-form-label.required::after {
+  content: " *";
+  color: var(--danger);
+}
+.kz-form-control {
+  flex: 1;
+}
+.kz-input, .kz-select, .kz-textarea {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  font-size: 14px;
+  color: var(--text-main);
+  background: #fafafa;
+  outline: none;
+  transition: border-color 0.2s;
+  -webkit-appearance: none;
+}
+.kz-input:focus, .kz-select:focus, .kz-textarea:focus {
+  border-color: var(--primary);
+  background: #fff;
+}
+.kz-textarea {
+  min-height: 100px;
+  resize: none;
+}
+
+/* ─── 星级评价 ─── */
+.kz-stars {
+  display: flex;
+  gap: 8px;
+}
+.kz-star {
+  font-size: 32px;
+  cursor: pointer;
+  color: #d9d9d9;
+  transition: color 0.15s;
+}
+.kz-star.active { color: #faad14; }
+
+/* ─── 按钮 ─── */
+.kz-btn {
+  display: block;
+  width: 100%;
+  padding: 14px;
+  border: none;
+  border-radius: var(--radius);
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  text-align: center;
+  transition: opacity 0.2s;
+}
+.kz-btn:active { opacity: 0.8; }
+.kz-btn-primary { background: var(--primary); color: #fff; }
+.kz-btn-outline {
+  background: #fff;
+  color: var(--primary);
+  border: 1px solid var(--primary);
+}
+.kz-btn-danger { background: var(--danger); color: #fff; }
+.kz-btn-group {
+  display: flex;
+  gap: 10px;
+  padding: 0 16px 16px;
+}
+.kz-btn-group .kz-btn { margin: 0; }
+
+/* ─── 图表容器 ─── */
+.kz-chart-wrap {
+  background: #fff;
+  border-radius: var(--radius);
+  padding: 16px;
+  margin-bottom: 12px;
+  box-shadow: var(--shadow);
+}
+.kz-chart-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-main);
+  margin-bottom: 12px;
+}
+
+/* ─── 附件上传区域 ─── */
+.kz-upload-area {
+  border: 2px dashed var(--border);
+  border-radius: var(--radius-sm);
+  padding: 24px;
+  text-align: center;
+  cursor: pointer;
+  background: #fafafa;
+}
+.kz-upload-area:active { background: var(--primary-light); }
+.kz-upload-icon { font-size: 32px; margin-bottom: 8px; }
+.kz-upload-hint { font-size: 12px; color: var(--text-hint); }
+
+/* ─── 空状态 ─── */
+.kz-empty {
+  text-align: center;
+  padding: 60px 20px;
+  color: var(--text-hint);
+}
+.kz-empty-icon { font-size: 48px; margin-bottom: 12px; }
+.kz-empty-text { font-size: 14px; }
+
+/* ─── 分割线章节 ─── */
+.kz-section-header {
+  padding: 16px 0 8px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-sub);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+/* ─── 课堂卡片 ─── */
+.kz-learning-card {
+  background: #fff;
+  border-radius: var(--radius);
+  overflow: hidden;
+  margin-bottom: 12px;
+  box-shadow: var(--shadow);
+  cursor: pointer;
+}
+.kz-learning-img {
+  width: 100%;
+  height: 140px;
+  object-fit: cover;
+  background: linear-gradient(135deg, #1677ff22, #1677ff44);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 40px;
+}
+.kz-learning-body { padding: 12px 14px; }
+.kz-learning-title { font-size: 15px; font-weight: 600; margin-bottom: 6px; }
+.kz-learning-summary { font-size: 13px; color: var(--text-sub); line-height: 1.5; }
+.kz-learning-meta {
+  margin-top: 8px;
+  display: flex;
+  justify-content: space-between;
+  font-size: 11px;
+  color: var(--text-hint);
+}
+
+/* ─── 加载态 ─── */
+.kz-loading {
+  text-align: center;
+  padding: 40px;
+  color: var(--text-hint);
+}
+.kz-spinner {
+  width: 32px; height: 32px;
+  border: 3px solid var(--border);
+  border-top-color: var(--primary);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+  margin: 0 auto 12px;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* ─── Toast提示 ─── */
+.kz-toast {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background: rgba(0,0,0,0.75);
+  color: #fff;
+  padding: 10px 20px;
+  border-radius: 8px;
+  font-size: 14px;
+  z-index: 9999;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.2s;
+}
+.kz-toast.show { opacity: 1; }
+
+/* ─── 报表表格 ─── */
+.kz-report-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+.kz-report-table th {
+  background: var(--primary);
+  color: #fff;
+  padding: 10px 8px;
+  text-align: left;
+  font-weight: 600;
+}
+.kz-report-table td {
+  padding: 10px 8px;
+  border-bottom: 1px solid var(--border);
+}
+.kz-report-table tr:nth-child(even) td {
+  background: #fafafa;
+}

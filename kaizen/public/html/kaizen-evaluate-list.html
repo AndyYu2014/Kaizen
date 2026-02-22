@@ -1,0 +1,148 @@
+---
+no_cache: 1
+---
+
+{% extends "templates/web.html" %}
+{% block title %}改善评价{% endblock %}
+
+{% block page_content %}
+<div class="kz-page">
+
+  <div id="view-list">
+    <div class="kz-header">
+      <a href="/kaizen-home" class="back-btn">‹</a>
+      <span class="title">改善评价</span>
+    </div>
+    <div class="kz-content">
+      <div id="eval-list-container"><div class="kz-loading">加载中...</div></div>
+    </div>
+  </div>
+
+  <div id="view-detail" style="display:none;">
+    <div class="kz-header">
+      <a href="javascript:showList()" class="back-btn">‹</a>
+      <span class="title">评价改善效果</span>
+    </div>
+    <div class="kz-content">
+
+      <div class="kz-card">
+        <div class="kz-card-title">📋 项目实施结果</div>
+        <div id="eval-project-info"></div>
+      </div>
+
+      <div class="kz-card">
+        <div class="kz-card-title">⭐ 星级评价</div>
+        <p style="font-size:13px;color:#999;margin-bottom:12px;">请根据改善效果给予星级评价（5星最高）</p>
+        <div class="kz-stars" id="star-container"></div>
+        <div style="margin-top:8px;font-size:13px;color:var(--primary);" id="star-label">请点击星星评分</div>
+      </div>
+
+      <div class="kz-card">
+        <div class="kz-card-title">🎁 激励措施</div>
+        <div class="kz-form-group">
+          <textarea class="kz-textarea" id="incentive_measures"
+            placeholder="请填写对改善人员的激励措施（积分/奖励等）..."></textarea>
+        </div>
+      </div>
+
+    </div>
+    <div class="kz-bottom-bar">
+      <button class="kz-btn kz-btn-primary" style="width:100%;" onclick="submitEval()">确认评价并关闭</button>
+    </div>
+  </div>
+
+</div>
+
+<script>
+let currentProject = null;
+let starValue = 0;
+const starLabels = ["", "较差", "一般", "良好", "优秀", "卓越"];
+
+document.addEventListener("DOMContentLoaded", showList);
+
+function showList() {
+  document.getElementById("view-list").style.display = "";
+  document.getElementById("view-detail").style.display = "none";
+
+  KZ.api("kaizen.api.kaizen_api.get_projects_for_evaluate").then(data => {
+    const container = document.getElementById("eval-list-container");
+    if (!data || !data.length) { KZ.showEmpty(container, "暂无待评价的项目"); return; }
+    container.innerHTML = data.map(item => `
+      <div class="kz-list-item" onclick="showDetail('${item.name}')">
+        <div class="item-header">
+          <span class="item-no">${item.project_no || item.name}</span>
+          ${KZ.tag(item.status)}
+        </div>
+        <div class="item-desc">${(item.implement_result || "").substring(0, 60) || "暂无实施描述"}</div>
+        <div class="item-footer">
+          <span class="kz-tag type">${item.kaizen_type || ""}</span>
+        </div>
+      </div>
+    `).join("");
+  });
+}
+
+function showDetail(name) {
+  frappe.call({ method: "frappe.client.get",
+    args: { doctype: "Kaizen Project", name: name }
+  }).then(r => {
+    currentProject = r.message;
+    starValue = 0;
+
+    document.getElementById("view-list").style.display = "none";
+    document.getElementById("view-detail").style.display = "";
+
+    document.getElementById("eval-project-info").innerHTML = `
+      <table style="width:100%;font-size:13px;line-height:2;">
+        <tr><td style="color:#999;width:80px;">项目编号</td><td>${currentProject.project_no || currentProject.name}</td></tr>
+        <tr><td style="color:#999;">类型</td><td>${currentProject.kaizen_type || "-"}</td></tr>
+        <tr><td style="color:#999;">改善目标</td><td>${currentProject.improvement_goal || "-"}</td></tr>
+        <tr><td style="color:#999;">开始日期</td><td>${KZ.formatDate(currentProject.actual_start_date)}</td></tr>
+      </table>
+      <div style="margin-top:12px;">
+        <div style="font-size:12px;color:#999;margin-bottom:6px;">实施效果</div>
+        <div style="font-size:14px;line-height:1.7;color:#333;">${currentProject.implement_result || "（未填写）"}</div>
+      </div>
+    `;
+
+    document.getElementById("incentive_measures").value = currentProject.incentive_measures || "";
+    renderStars();
+  });
+}
+
+function renderStars() {
+  const el = document.getElementById("star-container");
+  el.innerHTML = "";
+  for (let i = 1; i <= 5; i++) {
+    const star = document.createElement("span");
+    star.className = "star" + (i <= starValue ? " active" : "");
+    star.textContent = "★";
+    star.style.fontSize = "36px";
+    star.style.cursor = "pointer";
+    star.style.transition = "color 0.15s";
+    star.style.color = i <= starValue ? "#faad14" : "#ddd";
+    star.addEventListener("click", () => {
+      starValue = i;
+      renderStars();
+      document.getElementById("star-label").textContent = starLabels[i] || "";
+    });
+    el.appendChild(star);
+  }
+}
+
+function submitEval() {
+  if (!starValue) { KZ.toast("请先进行星级评价", "error"); return; }
+
+  KZ.api("kaizen.api.kaizen_api.save_evaluation", {
+    data: JSON.stringify({
+      project_name: currentProject.name,
+      star_rating: starValue,
+      incentive_measures: document.getElementById("incentive_measures").value
+    })
+  }).then(() => {
+    KZ.toast(`评价完成！${starValue >= 4 ? "优秀案例将自动推送至精益课堂！" : ""}`, "success");
+    setTimeout(showList, 1800);
+  });
+}
+</script>
+{% endblock %}

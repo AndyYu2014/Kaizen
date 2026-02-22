@@ -1,0 +1,249 @@
+---
+no_cache: 1
+---
+
+{% extends "templates/web.html" %}
+{% block title %}新建改善提案{% endblock %}
+
+{% block page_content %}
+<div class="kz-page" id="kz-proposal-new">
+
+  <div class="kz-header">
+    <a href="/kaizen-proposal-list" class="back-btn">‹</a>
+    <span class="title" id="page-title">新建改善提案</span>
+  </div>
+
+  <div class="kz-content">
+
+    <!-- 附件区（拍照/视频/文件） -->
+    <div class="kz-card">
+      <div class="kz-card-title">📷 拍照 / 录视频</div>
+      <div style="display:flex;gap:10px;flex-wrap:wrap;">
+        <label class="kz-upload-area" style="flex:1;min-width:100px;" for="upload-image">
+          <div class="icon">📸</div>
+          <div class="hint">拍照</div>
+          <input type="file" id="upload-image" accept="image/*" capture="environment" style="display:none;">
+        </label>
+        <label class="kz-upload-area" style="flex:1;min-width:100px;" for="upload-video">
+          <div class="icon">🎥</div>
+          <div class="hint">录视频</div>
+          <input type="file" id="upload-video" accept="video/*" capture="environment" style="display:none;">
+        </label>
+        <label class="kz-upload-area" style="flex:1;min-width:100px;" for="upload-audio">
+          <div class="icon">🎵</div>
+          <div class="hint">添加附件</div>
+          <input type="file" id="upload-audio" style="display:none;">
+        </label>
+      </div>
+      <div id="attachments-preview" style="margin-top:8px;"></div>
+    </div>
+
+    <!-- 基本信息 -->
+    <div class="kz-card">
+      <div class="kz-card-title">基本信息</div>
+
+      <div class="kz-form-group">
+        <label class="kz-form-label required">精益类型</label>
+        <select class="kz-select" id="kaizen_type">
+          <option value="">请选择精益类型</option>
+        </select>
+      </div>
+
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+        <div class="kz-form-group">
+          <label class="kz-form-label">产线</label>
+          <select class="kz-select" id="production_line">
+            <option value="">请选择</option>
+          </select>
+        </div>
+        <div class="kz-form-group">
+          <label class="kz-form-label">设备</label>
+          <select class="kz-select" id="equipment">
+            <option value="">请选择</option>
+          </select>
+        </div>
+        <div class="kz-form-group">
+          <label class="kz-form-label">仓库</label>
+          <select class="kz-select" id="warehouse">
+            <option value="">请选择</option>
+          </select>
+        </div>
+        <div class="kz-form-group">
+          <label class="kz-form-label">物料</label>
+          <select class="kz-select" id="item">
+            <option value="">请选择</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="kz-form-group">
+        <label class="kz-form-label">语音备注（通过微信语音输入）</label>
+        <textarea class="kz-textarea" id="voice_notes" placeholder="可通过微信语音键输入，文字将自动填入此处..." style="min-height:70px;"></textarea>
+      </div>
+    </div>
+
+    <!-- 待改善现象 -->
+    <div class="kz-card">
+      <div class="kz-card-title">🔴 待改善现象</div>
+      <div class="kz-form-group">
+        <textarea class="kz-textarea" id="phenomenon_description"
+          placeholder="请描述发现的问题或待改善现象..." style="min-height:120px;"></textarea>
+      </div>
+    </div>
+
+    <!-- 方案提案 -->
+    <div class="kz-card">
+      <div class="kz-card-title">💡 方案提案</div>
+      <div class="kz-form-group">
+        <textarea class="kz-textarea" id="suggestion_description"
+          placeholder="请填写您建议的解决方案（可选）..." style="min-height:100px;"></textarea>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- 底部按钮 -->
+  <div class="kz-bottom-bar">
+    <button class="kz-btn kz-btn-outline" onclick="saveProposal(false)">保存草稿</button>
+    <button class="kz-btn kz-btn-primary" onclick="saveProposal(true)">提交</button>
+  </div>
+
+</div>
+
+<script>
+let attachments = [];
+let editName = KZ.getParam("name");
+
+document.addEventListener("DOMContentLoaded", function() {
+  if (editName) {
+    document.getElementById("page-title").textContent = "编辑改善提案";
+    loadProposalData(editName);
+  }
+  loadOptions();
+  initUploads();
+});
+
+function loadOptions() {
+  // 精益类型
+  frappe.call({ method: "frappe.client.get_list",
+    args: { doctype: "Kaizen Type", filters: { is_active: 1 }, fields: ["name", "type_name"] }
+  }).then(r => {
+    const sel = document.getElementById("kaizen_type");
+    (r.message || []).forEach(t => {
+      sel.innerHTML += `<option value="${t.name}">${t.type_name || t.name}</option>`;
+    });
+  });
+
+  // 产线（Workstation）
+  frappe.call({ method: "frappe.client.get_list",
+    args: { doctype: "Workstation", fields: ["name"], limit: 100 }
+  }).then(r => {
+    const sel = document.getElementById("production_line");
+    (r.message || []).forEach(t => sel.innerHTML += `<option value="${t.name}">${t.name}</option>`);
+  });
+
+  // 仓库
+  frappe.call({ method: "frappe.client.get_list",
+    args: { doctype: "Warehouse", fields: ["name"], limit: 100 }
+  }).then(r => {
+    const sel = document.getElementById("warehouse");
+    (r.message || []).forEach(t => sel.innerHTML += `<option value="${t.name}">${t.name}</option>`);
+  });
+
+  // 设备（Asset）
+  frappe.call({ method: "frappe.client.get_list",
+    args: { doctype: "Asset", fields: ["name", "asset_name"], limit: 100 }
+  }).then(r => {
+    const sel = document.getElementById("equipment");
+    (r.message || []).forEach(t => sel.innerHTML += `<option value="${t.name}">${t.asset_name || t.name}</option>`);
+  });
+
+  // 物料
+  frappe.call({ method: "frappe.client.get_list",
+    args: { doctype: "Item", fields: ["name", "item_name"], limit: 200 }
+  }).then(r => {
+    const sel = document.getElementById("item");
+    (r.message || []).forEach(t => sel.innerHTML += `<option value="${t.name}">${t.item_name || t.name}</option>`);
+  });
+}
+
+function loadProposalData(name) {
+  frappe.call({ method: "frappe.client.get",
+    args: { doctype: "Kaizen Proposal", name: name }
+  }).then(r => {
+    const d = r.message;
+    document.getElementById("kaizen_type").value = d.kaizen_type || "";
+    document.getElementById("production_line").value = d.production_line || "";
+    document.getElementById("equipment").value = d.equipment || "";
+    document.getElementById("warehouse").value = d.warehouse || "";
+    document.getElementById("item").value = d.item || "";
+    document.getElementById("voice_notes").value = d.voice_notes || "";
+    document.getElementById("phenomenon_description").value = d.phenomenon_description || "";
+    document.getElementById("suggestion_description").value = d.suggestion_description || "";
+  });
+}
+
+function initUploads() {
+  ["upload-image", "upload-video", "upload-audio"].forEach(id => {
+    document.getElementById(id).addEventListener("change", function() {
+      const file = this.files[0];
+      if (!file) return;
+      uploadFile(file);
+    });
+  });
+}
+
+function uploadFile(file) {
+  const preview = document.getElementById("attachments-preview");
+  const formData = new FormData();
+  formData.append("file", file);
+  formData.append("is_private", "0");
+
+  fetch("/api/method/upload_file", {
+    method: "POST",
+    headers: { "X-Frappe-CSRF-Token": frappe.csrf_token },
+    body: formData
+  })
+  .then(r => r.json())
+  .then(data => {
+    if (data.message) {
+      const url = data.message.file_url;
+      attachments.push(url);
+      const isImage = file.type.startsWith("image/");
+      preview.innerHTML += isImage
+        ? `<img src="${url}" style="width:80px;height:80px;object-fit:cover;border-radius:8px;margin:4px;">`
+        : `<div style="display:inline-flex;align-items:center;gap:4px;background:#f5f5f5;padding:4px 8px;border-radius:6px;margin:4px;font-size:12px;">📎 ${file.name}</div>`;
+      KZ.toast("上传成功", "success");
+    }
+  })
+  .catch(() => KZ.toast("上传失败，请重试", "error"));
+}
+
+function saveProposal(submit) {
+  const type = document.getElementById("kaizen_type").value;
+  const phenomenon = document.getElementById("phenomenon_description").value.trim();
+
+  if (!type) { KZ.toast("请选择精益类型", "error"); return; }
+  if (!phenomenon) { KZ.toast("请填写待改善现象", "error"); return; }
+
+  const data = {
+    name: editName || null,
+    kaizen_type: type,
+    production_line: document.getElementById("production_line").value,
+    equipment: document.getElementById("equipment").value,
+    warehouse: document.getElementById("warehouse").value,
+    item: document.getElementById("item").value,
+    voice_notes: document.getElementById("voice_notes").value,
+    phenomenon_description: phenomenon,
+    suggestion_description: document.getElementById("suggestion_description").value,
+    submit: submit
+  };
+
+  KZ.api("kaizen.api.kaizen_api.save_proposal", { data: JSON.stringify(data) })
+    .then(result => {
+      KZ.toast(submit ? "提交成功！" : "保存成功！", "success");
+      setTimeout(() => KZ.goTo("/kaizen-proposal-list"), 1200);
+    });
+}
+</script>
+{% endblock %}

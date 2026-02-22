@@ -1,0 +1,120 @@
+{% extends "templates/web.html" %}
+{% block title %}改善方案编制{% endblock %}
+{% block page_content %}
+<body class="kaizen-page">
+<link rel="stylesheet" href="/assets/kaizen/css/kaizen.css">
+<div class="kz-navbar">
+  <span class="kz-navbar-back" onclick="history.back()">‹ 返回</span>
+  <span class="kz-navbar-title">改善方案编制</span>
+  <span style="width:48px"></span>
+</div>
+<div style="padding:12px 16px 100px;" id="plan-content">
+  <div class="kz-loading"><div class="kz-spinner"></div><div>加载中...</div></div>
+</div>
+<div style="position:fixed;bottom:0;left:0;right:0;background:#fff;padding:12px 16px;border-top:1px solid #e8e8e8;">
+  <button class="kz-btn kz-btn-primary" onclick="submitPlan()">提交方案，开始实施</button>
+</div>
+<script src="/assets/kaizen/js/kaizen.js"></script>
+<script>
+const urlParts = window.location.pathname.split('/');
+const projectName = urlParts[urlParts.length - 1];
+let projectData = null;
+
+async function init() {
+  if (projectName === 'list') { loadPlanList(); return; }
+  const container = document.getElementById('plan-content');
+  try {
+    const resp = await frappe.call({ method: 'frappe.client.get', args: { doctype: 'Kaizen Project', name: projectName } });
+    projectData = resp.message;
+    container.innerHTML = renderPlanForm(projectData);
+  } catch(e) { container.innerHTML = '<div class="kz-empty">⚠️ 加载失败</div>'; }
+}
+
+async function loadPlanList() {
+  const container = document.getElementById('plan-content');
+  document.querySelector('.kz-navbar-title').textContent = '方案编制列表';
+  document.querySelector('.kz-navbar-back').textContent = '‹ 精益';
+  document.querySelector('.kz-navbar-back').onclick = () => KaizenUtils.goto('/kaizen-home');
+  document.querySelector('[onclick="submitPlan()"]').style.display = 'none';
+  try {
+    const data = await KaizenUtils.call('kaizen.kaizen.api.kaizen_api.get_pending_plan_projects');
+    if (!data || !data.length) {
+      container.innerHTML = `<div class="kz-empty"><div class="kz-empty-icon">✅</div><div>暂无待编制方案的项目</div></div>`;
+      return;
+    }
+    container.innerHTML = data.map(p => `
+      <div class="kz-item-card" onclick="KaizenUtils.goto('/kaizen-plan/${p.name}')">
+        <div class="kz-item-card-row1">
+          <span class="kz-item-no">${p.name}</span>
+          <span class="kz-tag kz-tag-status-planning">方案编制中</span>
+        </div>
+        <div style="font-size:14px;font-weight:600;margin-bottom:4px;">${p.title || '-'}</div>
+        <div style="font-size:12px;color:#999;">预期完成：${KaizenUtils.formatDate(p.expected_completion_date)}</div>
+      </div>
+    `).join('');
+  } catch(e) { container.innerHTML = '<div class="kz-empty">加载失败</div>'; }
+}
+
+function renderPlanForm(d) {
+  return `
+    <div class="kz-form-section">
+      <div class="kz-form-section-title">项目信息</div>
+      <div class="kz-form-item"><div class="kz-form-label">项目编号</div><div>${d.name}</div></div>
+      <div class="kz-form-item"><div class="kz-form-label">来源提案</div><div style="color:#1677ff;">${d.proposal || '-'}</div></div>
+      <div class="kz-form-item"><div class="kz-form-label">改进目标</div><div style="font-size:13px;color:#666;">${d.improvement_target || '-'}</div></div>
+    </div>
+
+    <div class="kz-form-section">
+      <div class="kz-form-section-title">改善方案</div>
+      <div class="kz-form-item" style="flex-direction:column;">
+        <div class="kz-form-label required" style="margin-bottom:6px;">临时措施</div>
+        <textarea id="p-temp" class="kz-textarea" placeholder="描述临时应急措施...">${d.temporary_measure || ''}</textarea>
+      </div>
+      <div class="kz-form-item" style="flex-direction:column;">
+        <div class="kz-form-label required" style="margin-bottom:6px;">永久解决措施</div>
+        <textarea id="p-perm" class="kz-textarea" placeholder="描述永久根本解决方案...">${d.permanent_measure || ''}</textarea>
+      </div>
+    </div>
+
+    <div class="kz-form-section">
+      <div class="kz-form-section-title">实施计划</div>
+      <div class="kz-form-item">
+        <div class="kz-form-label required">开始日期</div>
+        <div class="kz-form-control"><input id="p-start" class="kz-input" type="date" value="${d.plan_start_date || ''}"></div>
+      </div>
+      <div class="kz-form-item">
+        <div class="kz-form-label required">完成日期</div>
+        <div class="kz-form-control"><input id="p-end" class="kz-input" type="date" value="${d.plan_end_date || ''}"></div>
+      </div>
+    </div>
+
+    <div class="kz-form-section">
+      <div class="kz-form-section-title">实施部门</div>
+      ${(d.implementation_departments || []).map(dept => `
+        <div class="kz-form-item"><div class="kz-form-label">${dept.department}</div><div>${dept.responsible_person || '-'}</div></div>
+      `).join('') || '<div class="kz-form-item"><div style="color:#999;">暂无指定部门</div></div>'}
+    </div>
+  `;
+}
+
+async function submitPlan() {
+  const temp = document.getElementById('p-temp')?.value;
+  const perm = document.getElementById('p-perm')?.value;
+  const start = document.getElementById('p-start')?.value;
+  const end = document.getElementById('p-end')?.value;
+  if (!temp || !perm) { KaizenUtils.toast('请填写临时措施和永久措施'); return; }
+  if (!start || !end) { KaizenUtils.toast('请选择开始和完成日期'); return; }
+  try {
+    await KaizenUtils.call('kaizen.kaizen.api.kaizen_api.submit_plan', {
+      data: JSON.stringify({ project_name: projectName, temporary_measure: temp,
+        permanent_measure: perm, plan_start_date: start, plan_end_date: end })
+    });
+    KaizenUtils.toast('方案已提交，项目进入实施阶段！');
+    setTimeout(() => KaizenUtils.goto('/kaizen-home'), 1500);
+  } catch(e) { KaizenUtils.toast('提交失败'); }
+}
+
+init();
+</script>
+</body>
+{% endblock %}

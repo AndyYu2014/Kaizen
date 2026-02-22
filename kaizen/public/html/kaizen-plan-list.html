@@ -1,0 +1,184 @@
+---
+no_cache: 1
+---
+
+{% extends "templates/web.html" %}
+{% block title %}改善方案编制{% endblock %}
+
+{% block page_content %}
+<div class="kz-page" id="kz-plan">
+
+  <div id="view-list">
+    <div class="kz-header">
+      <a href="/kaizen-home" class="back-btn">‹</a>
+      <span class="title">改善方案编制</span>
+    </div>
+    <div class="kz-content">
+      <div id="plan-list-container"><div class="kz-loading">加载中...</div></div>
+    </div>
+  </div>
+
+  <div id="view-detail" style="display:none;">
+    <div class="kz-header">
+      <a href="javascript:showList()" class="back-btn">‹</a>
+      <span class="title">编制方案</span>
+    </div>
+    <div class="kz-content">
+
+      <div class="kz-card">
+        <div class="kz-card-title">📋 改善项目信息</div>
+        <div id="project-info"></div>
+      </div>
+
+      <div class="kz-card">
+        <div class="kz-card-title">🔧 改善措施</div>
+        <div class="kz-form-group">
+          <label class="kz-form-label">临时更改措施</label>
+          <textarea class="kz-textarea" id="temporary_measures" placeholder="填写临时应急措施..."></textarea>
+        </div>
+        <div class="kz-form-group">
+          <label class="kz-form-label">永久解决措施</label>
+          <textarea class="kz-textarea" id="permanent_measures" placeholder="填写长期根本解决方案..."></textarea>
+        </div>
+      </div>
+
+      <div class="kz-card">
+        <div class="kz-card-title">📅 实施计划</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+          <div class="kz-form-group">
+            <label class="kz-form-label">计划开始日期</label>
+            <input type="date" class="kz-input" id="plan_start_date">
+          </div>
+          <div class="kz-form-group">
+            <label class="kz-form-label">计划完成日期</label>
+            <input type="date" class="kz-input" id="plan_end_date">
+          </div>
+        </div>
+      </div>
+
+      <div class="kz-card">
+        <div class="kz-card-title">🏢 实施部门</div>
+        <div id="dept-list-plan"></div>
+        <button class="kz-btn kz-btn-outline" style="width:100%;margin-top:8px;" onclick="addDept()">+ 添加部门</button>
+      </div>
+
+    </div>
+    <div class="kz-bottom-bar">
+      <button class="kz-btn kz-btn-outline" onclick="savePlan(false)">保存</button>
+      <button class="kz-btn kz-btn-primary" onclick="savePlan(true)">提交开始实施</button>
+    </div>
+  </div>
+
+</div>
+
+<script>
+let currentProject = null;
+let departments = [];
+
+document.addEventListener("DOMContentLoaded", showList);
+
+function showList() {
+  document.getElementById("view-list").style.display = "";
+  document.getElementById("view-detail").style.display = "none";
+
+  KZ.api("kaizen.api.kaizen_api.get_projects_for_plan").then(data => {
+    const container = document.getElementById("plan-list-container");
+    if (!data || !data.length) { KZ.showEmpty(container, "暂无待编制方案的项目"); return; }
+    container.innerHTML = data.map(item => `
+      <div class="kz-list-item" onclick="showDetail('${item.name}')">
+        <div class="item-header">
+          <span class="item-no">${item.project_no || item.name}</span>
+          <span class="item-date">预计：${KZ.formatDate(item.expected_completion_date)}</span>
+        </div>
+        <div class="item-footer">
+          ${KZ.tag(item.status)}
+          <span class="kz-tag type">${item.kaizen_type || ""}</span>
+          ${item.urgency ? `<span class="kz-tag ${item.urgency==="高"?"cancelled":"type"}">紧迫性：${item.urgency}</span>` : ""}
+        </div>
+      </div>
+    `).join("");
+  });
+}
+
+function showDetail(name) {
+  frappe.call({ method: "frappe.client.get",
+    args: { doctype: "Kaizen Project", name: name }
+  }).then(r => {
+    currentProject = r.message;
+    departments = (currentProject.departments || []).map(d => ({
+      department: d.department,
+      responsible_person: d.responsible_person,
+      role_description: d.role_description
+    }));
+
+    document.getElementById("view-list").style.display = "none";
+    document.getElementById("view-detail").style.display = "";
+
+    document.getElementById("project-info").innerHTML = `
+      <table style="width:100%;font-size:13px;line-height:2;">
+        <tr><td style="color:#999;width:80px;">项目编号</td><td>${currentProject.project_no || currentProject.name}</td></tr>
+        <tr><td style="color:#999;">精益类型</td><td>${currentProject.kaizen_type || "-"}</td></tr>
+        <tr><td style="color:#999;">改善目标</td><td>${currentProject.improvement_goal || "-"}</td></tr>
+        <tr><td style="color:#999;">紧迫性</td><td>${currentProject.urgency || "-"}</td></tr>
+        <tr><td style="color:#999;">经济性</td><td>${currentProject.economic_impact || "-"}</td></tr>
+        <tr><td style="color:#999;">质量影响</td><td>${currentProject.quality_impact || "-"}</td></tr>
+      </table>
+    `;
+
+    document.getElementById("temporary_measures").value = currentProject.temporary_measures || "";
+    document.getElementById("permanent_measures").value = currentProject.permanent_measures || "";
+    document.getElementById("plan_start_date").value = currentProject.plan_start_date || "";
+    document.getElementById("plan_end_date").value = currentProject.plan_end_date || "";
+
+    renderDepts();
+  });
+}
+
+function addDept() {
+  departments.push({ department: "", responsible_person: "", role_description: "" });
+  renderDepts();
+}
+
+function renderDepts() {
+  const el = document.getElementById("dept-list-plan");
+  el.innerHTML = departments.map((d, i) => `
+    <div style="background:#f8f8f8;border-radius:8px;padding:10px;margin-bottom:8px;">
+      <div style="display:flex;gap:8px;margin-bottom:6px;">
+        <select class="kz-select" onchange="departments[${i}].department=this.value" style="flex:1;font-size:13px;">
+          <option value="">选择部门</option>
+          ${(window._depts||[]).map(dep => `<option value="${dep.name}" ${d.department===dep.name?"selected":""}>${dep.name}</option>`).join("")}
+        </select>
+        <button onclick="departments.splice(${i},1);renderDepts();" style="background:none;border:none;color:#ff4d4f;font-size:18px;cursor:pointer;flex-shrink:0;">✕</button>
+      </div>
+      <select class="kz-select" onchange="departments[${i}].responsible_person=this.value" style="width:100%;font-size:13px;margin-bottom:6px;">
+        <option value="">选择负责人</option>
+        ${(window._users||[]).map(u => `<option value="${u.name}" ${d.responsible_person===u.name?"selected":""}>${u.full_name||u.name}</option>`).join("")}
+      </select>
+      <input class="kz-input" placeholder="职责说明" value="${d.role_description||""}"
+        onchange="departments[${i}].role_description=this.value" style="font-size:13px;">
+    </div>
+  `).join("");
+}
+
+frappe.call({ method: "frappe.client.get_list", args: { doctype: "Department", fields: ["name"], limit: 100 }}).then(r => { window._depts = r.message || []; renderDepts(); });
+frappe.call({ method: "frappe.client.get_list", args: { doctype: "User", fields: ["name", "full_name"], filters: { enabled: 1 }, limit: 200 }}).then(r => { window._users = r.message || []; renderDepts(); });
+
+function savePlan(submit) {
+  const data = {
+    project_name: currentProject.name,
+    temporary_measures: document.getElementById("temporary_measures").value,
+    permanent_measures: document.getElementById("permanent_measures").value,
+    plan_start_date: document.getElementById("plan_start_date").value,
+    plan_end_date: document.getElementById("plan_end_date").value,
+    departments: departments,
+    submit: submit
+  };
+
+  KZ.api("kaizen.api.kaizen_api.save_project_plan", { data: JSON.stringify(data) })
+    .then(() => {
+      KZ.toast(submit ? "已提交，进入实施阶段！" : "保存成功！", "success");
+      setTimeout(showList, 1200);
+    });
+}
+</script>
+{% endblock %}

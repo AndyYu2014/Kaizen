@@ -1,0 +1,87 @@
+{% extends "templates/web.html" %}
+{% block title %}评价改善项目{% endblock %}
+{% block page_content %}
+<body class="kaizen-page">
+<link rel="stylesheet" href="/assets/kaizen/css/kaizen.css">
+<div class="kz-navbar">
+  <span class="kz-navbar-back" onclick="history.back()">‹ 返回</span>
+  <span class="kz-navbar-title">改善评价</span>
+  <span style="width:48px"></span>
+</div>
+<div style="padding:12px 16px 100px;" id="eval-content">
+  <div class="kz-loading"><div class="kz-spinner"></div><div>加载中...</div></div>
+</div>
+<div style="position:fixed;bottom:0;left:0;right:0;background:#fff;padding:12px 16px;border-top:1px solid #e8e8e8;">
+  <button class="kz-btn kz-btn-primary" onclick="submitEval()">完成评价并关闭</button>
+</div>
+<script src="/assets/kaizen/js/kaizen.js"></script>
+<script>
+const urlParts = window.location.pathname.split('/');
+const projectName = urlParts[urlParts.length - 1];
+let selectedStar = 0;
+
+async function init() {
+  const container = document.getElementById('eval-content');
+  try {
+    const resp = await frappe.call({ method: 'frappe.client.get', args: { doctype: 'Kaizen Project', name: projectName } });
+    const d = resp.message;
+    container.innerHTML = `
+      <div class="kz-form-section">
+        <div class="kz-form-section-title">项目信息</div>
+        <div class="kz-form-item"><div class="kz-form-label">项目编号</div><div>${d.name}</div></div>
+        <div class="kz-form-item"><div class="kz-form-label">来源提案</div><div style="color:#1677ff;">${d.proposal || '-'}</div></div>
+        <div class="kz-form-item" style="flex-direction:column;">
+          <div class="kz-form-label" style="margin-bottom:6px;">实施效果</div>
+          <div style="background:#f5f5f5;padding:10px;border-radius:8px;font-size:14px;">${d.implementation_result || '-'}</div>
+        </div>
+      </div>
+
+      <div class="kz-form-section">
+        <div class="kz-form-section-title">星级评价</div>
+        <div class="kz-form-item" style="flex-direction:column;align-items:center;padding:20px;">
+          <div style="font-size:13px;color:#666;margin-bottom:12px;">请评价改善效果（最高5星）</div>
+          <div class="kz-stars" id="star-row">
+            ${[1,2,3,4,5].map(i => `<span class="kz-star" onclick="setStar(${i})">★</span>`).join('')}
+          </div>
+          <div id="star-label" style="font-size:13px;color:#999;margin-top:8px;">请点击星星评分</div>
+        </div>
+      </div>
+
+      <div class="kz-form-section">
+        <div class="kz-form-section-title">激励措施</div>
+        <div class="kz-form-item" style="flex-direction:column;">
+          <textarea id="e-incentive" class="kz-textarea" placeholder="输入激励措施，如：奖励金额、表扬通报等"></textarea>
+        </div>
+      </div>
+    `;
+  } catch(e) { document.getElementById('eval-content').innerHTML = '<div class="kz-empty">⚠️ 加载失败</div>'; }
+}
+
+const starLabels = { 1:'较差', 2:'一般', 3:'良好', 4:'优秀', 5:'卓越' };
+function setStar(n) {
+  selectedStar = n;
+  document.querySelectorAll('.kz-star').forEach((s, i) => {
+    s.classList.toggle('active', i < n);
+  });
+  document.getElementById('star-label').textContent = `${n}星 - ${starLabels[n]}`;
+}
+
+async function submitEval() {
+  if (!selectedStar) { KaizenUtils.toast('请选择星级评价'); return; }
+  try {
+    await KaizenUtils.call('kaizen.kaizen.api.kaizen_api.submit_evaluation', {
+      data: JSON.stringify({
+        project_name: projectName,
+        star_rating: selectedStar,
+        incentive_measure: document.getElementById('e-incentive')?.value || ''
+      })
+    });
+    KaizenUtils.toast('评价完成！改善项目已关闭 🎉');
+    setTimeout(() => KaizenUtils.goto('/kaizen-home'), 1500);
+  } catch(e) { KaizenUtils.toast('提交失败'); }
+}
+
+init();
+</script>
+</body>
+{% endblock %}

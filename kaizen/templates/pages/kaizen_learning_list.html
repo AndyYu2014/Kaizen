@@ -1,0 +1,88 @@
+{% extends "templates/web.html" %}
+{% block title %}精益课堂{% endblock %}
+{% block page_content %}
+<body class="kaizen-page">
+<link rel="stylesheet" href="/assets/kaizen/css/kaizen.css">
+<div class="kz-navbar">
+  <span class="kz-navbar-back" onclick="KaizenUtils.goto('/kaizen-home')">‹ 精益</span>
+  <span class="kz-navbar-title">精益课堂</span>
+  <span style="width:48px"></span>
+</div>
+
+<!-- 分类筛选 -->
+<div style="background:#fff;border-bottom:1px solid #e8e8e8;padding:10px 16px;display:flex;gap:10px;overflow-x:auto;">
+  <button class="kz-filter-btn active" onclick="setCategory('',this)">全部</button>
+  <button class="kz-filter-btn" onclick="setCategory('优秀案例',this)">🏆 优秀案例</button>
+  <button class="kz-filter-btn" onclick="setCategory('外部企业案例',this)">🌐 外部案例</button>
+  <button class="kz-filter-btn" onclick="setCategory('行业文章',this)">📰 行业文章</button>
+  <button class="kz-filter-btn" onclick="setCategory('精益工具介绍',this)">🔧 精益工具</button>
+</div>
+
+<div style="padding:12px 16px;" id="learning-list">
+  <div class="kz-loading"><div class="kz-spinner"></div><div>加载中...</div></div>
+</div>
+
+<style>
+.kz-filter-btn {
+  padding: 6px 14px; border-radius: 20px; border: 1px solid #e8e8e8;
+  background: #fff; font-size: 13px; cursor: pointer; white-space: nowrap;
+}
+.kz-filter-btn.active { background: #1677ff; color: #fff; border-color: #1677ff; }
+</style>
+
+<script src="/assets/kaizen/js/kaizen.js"></script>
+<script>
+let currentCategory = '';
+
+// 检查URL参数
+const urlParams = new URLSearchParams(window.location.search);
+const paramCategory = urlParams.get('category');
+if (paramCategory) currentCategory = paramCategory;
+
+async function loadList() {
+  const list = document.getElementById('learning-list');
+  KaizenUtils.showLoading(list);
+  try {
+    const data = await KaizenUtils.call('kaizen.kaizen.api.kaizen_api.get_learning_list',
+      { category: currentCategory });
+    if (!data || !data.length) {
+      list.innerHTML = `<div class="kz-empty"><div class="kz-empty-icon">📚</div><div>暂无内容</div></div>`;
+      return;
+    }
+    list.innerHTML = data.map(item => renderLearningCard(item)).join('');
+  } catch(e) { KaizenUtils.showEmpty(list, '加载失败'); }
+}
+
+function renderLearningCard(item) {
+  const categoryIcons = { '优秀案例':'🏆', '外部企业案例':'🌐', '行业文章':'📰', '精益工具介绍':'🔧' };
+  const icon = categoryIcons[item.category] || '📄';
+  return `
+    <div class="kz-learning-card" onclick="KaizenUtils.goto('/kaizen-learning-detail/${item.name}')">
+      ${item.cover_image
+        ? `<img class="kz-learning-img" src="${item.cover_image}" alt="${item.title}">`
+        : `<div class="kz-learning-img">${icon}</div>`
+      }
+      <div class="kz-learning-body">
+        ${item.is_featured ? '<span class="kz-tag kz-tag-type" style="margin-bottom:6px;display:inline-block;">⭐ 推荐</span>' : ''}
+        <div class="kz-learning-title">${item.title}</div>
+        <div class="kz-learning-summary">${item.summary || ''}</div>
+        <div class="kz-learning-meta">
+          <span>${item.category || ''} ${item.author ? '· ' + item.author : ''}</span>
+          <span>${KaizenUtils.formatDate(item.publish_date)}</span>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+function setCategory(cat, btn) {
+  currentCategory = cat;
+  document.querySelectorAll('.kz-filter-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  loadList();
+}
+
+loadList();
+</script>
+</body>
+{% endblock %}

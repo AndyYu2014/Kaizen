@@ -1,0 +1,178 @@
+{
+  "name": "Kaizen Proposal",
+  "module": "Kaizen",
+  "doctype": "DocType",
+  "naming_rule": "Expression",
+  "autoname": "KP-.YYYYMMDD.-.##",
+  "description": "改善提案 - 员工提交的改善建议",
+  "title_field": "name",
+  "fields": [
+    {
+      "fieldname": "status",
+      "fieldtype": "Select",
+      "label": "提案状态",
+      "options": "待提交\n已提交\n已立项\n已取消",
+      "default": "待提交",
+      "reqd": 1,
+      "in_list_view": 1,
+      "in_standard_filter": 1,
+      "read_only": 0
+    },
+    {
+      "fieldname": "kaizen_type",
+      "fieldtype": "Link",
+      "label": "精益类型",
+      "options": "Kaizen Type",
+      "reqd": 1,
+      "in_list_view": 1,
+      "in_standard_filter": 1
+    },
+    {
+      "fieldname": "col_break_1",
+      "fieldtype": "Column Break"
+    },
+    {
+      "fieldname": "submitted_by",
+      "fieldtype": "Link",
+      "label": "提交人",
+      "options": "User",
+      "read_only": 1,
+      "in_list_view": 1
+    },
+    {
+      "fieldname": "submitted_date",
+      "fieldtype": "Datetime",
+      "label": "提交时间",
+      "read_only": 1
+    },
+    {
+      "fieldname": "section_location",
+      "fieldtype": "Section Break",
+      "label": "关联位置"
+    },
+    {
+      "fieldname": "production_line",
+      "fieldtype": "Link",
+      "label": "产线",
+      "options": "Workstation"
+    },
+    {
+      "fieldname": "equipment",
+      "fieldtype": "Link",
+      "label": "设备",
+      "options": "Asset"
+    },
+    {
+      "fieldname": "col_break_2",
+      "fieldtype": "Column Break"
+    },
+    {
+      "fieldname": "warehouse",
+      "fieldtype": "Link",
+      "label": "仓库",
+      "options": "Warehouse"
+    },
+    {
+      "fieldname": "item",
+      "fieldtype": "Link",
+      "label": "物料",
+      "options": "Item"
+    },
+    {
+      "fieldname": "location_remark",
+      "fieldtype": "Small Text",
+      "label": "其他位置备注（语音转文字）"
+    },
+    {
+      "fieldname": "section_content",
+      "fieldtype": "Section Break",
+      "label": "提案内容"
+    },
+    {
+      "fieldname": "phenomenon",
+      "fieldtype": "Long Text",
+      "label": "待改善现象",
+      "reqd": 1,
+      "description": "描述当前存在的问题或待改善现象"
+    },
+    {
+      "fieldname": "phenomenon_attachments",
+      "fieldtype": "Attach",
+      "label": "现象附件（图片/视频/音频）"
+    },
+    {
+      "fieldname": "suggestion",
+      "fieldtype": "Long Text",
+      "label": "改善建议方案",
+      "description": "您的改善建议（可选）"
+    },
+    {
+      "fieldname": "section_review",
+      "fieldtype": "Section Break",
+      "label": "审核信息",
+      "collapsible": 1
+    },
+    {
+      "fieldname": "urgency",
+      "fieldtype": "Select",
+      "label": "紧迫性",
+      "options": "\n低\n中\n高"
+    },
+    {
+      "fieldname": "economic_value",
+      "fieldtype": "Select",
+      "label": "经济性",
+      "options": "\n低\n中\n高"
+    },
+    {
+      "fieldname": "quality_impact",
+      "fieldtype": "Select",
+      "label": "质量影响",
+      "options": "\n低\n中\n高"
+    },
+    {
+      "fieldname": "col_break_3",
+      "fieldtype": "Column Break"
+    },
+    {
+      "fieldname": "reviewer",
+      "fieldtype": "Link",
+      "label": "审核人",
+      "options": "User"
+    },
+    {
+      "fieldname": "review_date",
+      "fieldtype": "Datetime",
+      "label": "审核时间",
+      "read_only": 1
+    },
+    {
+      "fieldname": "review_comment",
+      "fieldtype": "Text",
+      "label": "审核意见"
+    },
+    {
+      "fieldname": "improvement_target",
+      "fieldtype": "Text",
+      "label": "预期改进目标（人/物/财）"
+    },
+    {
+      "fieldname": "expected_completion_date",
+      "fieldtype": "Date",
+      "label": "预期完成日期"
+    },
+    {
+      "fieldname": "kaizen_project",
+      "fieldtype": "Link",
+      "label": "关联改善项目",
+      "options": "Kaizen Project",
+      "read_only": 1
+    }
+  ],
+  "permissions": [
+    {"role": "System Manager", "read": 1, "write": 1, "create": 1, "delete": 1, "submit": 1, "cancel": 1},
+    {"role": "All", "read": 1, "write": 1, "create": 1}
+  ],
+  "track_changes": 1,
+  "in_create": 1
+}

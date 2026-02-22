@@ -1,0 +1,143 @@
+{
+ "actions": [],
+ "allow_import": 1,
+ "autoname": "format:KL-{YYYY}{MM}{DD}-{###}",
+ "creation": "2026-02-22 00:00:00.000000",
+ "doctype": "DocType",
+ "document_type": "Document",
+ "engine": "InnoDB",
+ "field_order": [
+  "title",
+  "category",
+  "source_type",
+  "source_project",
+  "col_break1",
+  "publish_date",
+  "author",
+  "is_published",
+  "section_content",
+  "cover_image",
+  "content",
+  "attachments",
+  "section_stats",
+  "view_count",
+  "star_rating"
+ ],
+ "fields": [
+  {
+   "fieldname": "title",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "标题",
+   "reqd": 1
+  },
+  {
+   "fieldname": "category",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "label": "分类",
+   "options": "优秀案例\n外部企业案例\n精益知识\n网络文章"
+  },
+  {
+   "fieldname": "source_type",
+   "fieldtype": "Select",
+   "label": "来源类型",
+   "options": "内部改善项目\n外部案例\n网络文章\n其他"
+  },
+  {
+   "fieldname": "source_project",
+   "fieldtype": "Link",
+   "label": "来源改善项目",
+   "options": "Kaizen Project",
+   "depends_on": "eval:doc.source_type=='内部改善项目'"
+  },
+  {
+   "fieldname": "col_break1",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "publish_date",
+   "fieldtype": "Date",
+   "label": "发布日期"
+  },
+  {
+   "fieldname": "author",
+   "fieldtype": "Link",
+   "label": "作者/整理人",
+   "options": "User"
+  },
+  {
+   "default": "0",
+   "fieldname": "is_published",
+   "fieldtype": "Check",
+   "in_list_view": 1,
+   "label": "已发布"
+  },
+  {
+   "fieldname": "section_content",
+   "fieldtype": "Section Break",
+   "label": "内容"
+  },
+  {
+   "fieldname": "cover_image",
+   "fieldtype": "Attach Image",
+   "label": "封面图"
+  },
+  {
+   "fieldname": "content",
+   "fieldtype": "Text Editor",
+   "label": "正文内容"
+  },
+  {
+   "fieldname": "attachments",
+   "fieldtype": "Attach",
+   "label": "附件"
+  },
+  {
+   "fieldname": "section_stats",
+   "fieldtype": "Section Break",
+   "label": "统计"
+  },
+  {
+   "default": "0",
+   "fieldname": "view_count",
+   "fieldtype": "Int",
+   "label": "浏览次数",
+   "read_only": 1
+  },
+  {
+   "fieldname": "star_rating",
+   "fieldtype": "Float",
+   "label": "平均评分",
+   "read_only": 1
+  }
+ ],
+ "links": [],
+ "modified": "2026-02-22 00:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Kaizen",
+ "name": "Kaizen Learning",
+ "naming_rule": "Expression",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "read": 1,
+   "role": "All"
+  }
+ ],
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "track_changes": 0
+}
