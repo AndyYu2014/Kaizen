@@ -1,142 +1,362 @@
 {% extends "templates/web.html" %}
-{% block title %}精益管理{% endblock %}
+{% block title %}&#x7CBE;&#x76CA;&#x7BA1;&#x7406;{% endblock %}
 {% block page_content %}
 <body class="kaizen-page">
-<link rel="stylesheet" href="/assets/kaizen/css/kaizen.css">
+<link rel="stylesheet" href="/assets/kaizen/css/kaizen.css?v=20260305">
 
-<!-- 顶部导航 -->
 <div class="kz-navbar">
-  <span class="kz-navbar-back" onclick="history.back()">‹ 返回</span>
-  <span class="kz-navbar-title">精益管理</span>
+  <span class="kz-navbar-back" onclick="history.back()">&#x2039; &#x8FD4;&#x56DE;</span>
+  <span class="kz-navbar-title">&#x7CBE;&#x76CA;&#x7BA1;&#x7406;</span>
   <span style="width:48px"></span>
 </div>
 
 <div style="padding: 12px 16px;" id="kz-home-content">
-  <div class="kz-loading"><div class="kz-spinner"></div><div>加载中...</div></div>
+  <div class="kz-loading"><div class="kz-spinner"></div><div>&#x52A0;&#x8F7D;&#x4E2D;...</div></div>
 </div>
 
-<script src="/assets/kaizen/js/kaizen.js"></script>
+<script src="/assets/kaizen/js/kaizen.js?v=20260305"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <script>
-(async function() {
+let homeChart = null;
+let latestStats = null;
+const S_DRAFT = '\u5f85\u63d0\u4ea4';
+const S_SUBMITTED = '\u5df2\u63d0\u4ea4';
+const S_APPROVED = '\u5df2\u7acb\u9879';
+
+let homeState = {
+  rangePreset: 'last_quarter',
+  granularity: 'month',
+  statusFilters: {}
+};
+homeState.statusFilters[S_DRAFT] = true;
+homeState.statusFilters[S_SUBMITTED] = true;
+homeState.statusFilters[S_APPROVED] = true;
+
+(async function initHome() {
   const container = document.getElementById('kz-home-content');
   try {
-    const stats = await KaizenUtils.call('kaizen.kaizen.api.kaizen_api.get_home_stats');
+    const stats = await fetchHomeStats();
+    latestStats = stats;
     container.innerHTML = renderHome(stats);
     initChart(stats);
-    bindMenuEvents();
-  } catch(e) {
-    container.innerHTML = '<div class="kz-empty"><div class="kz-empty-icon">⚠️</div><div>加载失败，请刷新重试</div></div>';
+    bindHomeEvents();
+  } catch (e) {
+    console.error('kaizen-home load error', e);
+    container.innerHTML = '<div class="kz-empty"><div class="kz-empty-icon">&#9888;</div><div>\u52a0\u8f7d\u5931\u8d25\uff0c\u8bf7\u5237\u65b0\u91cd\u8bd5</div></div>';
   }
 })();
 
+async function fetchHomeStats() {
+  const range = getRangeParams();
+  return await KaizenUtils.call('kaizen.kaizen.api.kaizen_api.get_home_stats', range);
+}
+
+function getRangeParams() {
+  const end = new Date();
+  let start = new Date();
+  if (homeState.rangePreset === 'last_week') {
+    start.setDate(end.getDate() - 7);
+  } else if (homeState.rangePreset === 'last_month') {
+    start.setMonth(end.getMonth() - 1);
+  } else if (homeState.rangePreset === 'last_quarter') {
+    start.setMonth(end.getMonth() - 3);
+  } else if (homeState.rangePreset === 'last_year') {
+    start.setFullYear(end.getFullYear() - 1);
+  } else {
+    start.setMonth(end.getMonth() - 3);
+  }
+  const toDate = d => d.toISOString().slice(0, 10);
+  return { start_date: toDate(start), end_date: toDate(end), granularity: homeState.granularity };
+}
+
 function renderHome(stats) {
   return `
-    <!-- 折线图 -->
-    <div class="kz-chart-wrap">
-      <div class="kz-chart-title">近三个月改善动态</div>
+    <div class="kz-card kz-chart-card">
+      <div class="kz-chart-title-row">
+        <span class="kz-chart-heading">\u6539\u5584\u52a8\u6001</span>
+        <div class="kz-chart-selectors">
+          <select id="kz-range-select" class="kz-select">
+            <option value="last_year">\u4e0a\u5e74</option>
+            <option value="last_quarter" selected>\u4e0a\u5b63\u5ea6</option>
+            <option value="last_month">\u4e0a\u6708</option>
+            <option value="last_week">\u4e0a\u5468</option>
+          </select>
+          <select id="kz-granularity-select" class="kz-select">
+            <option value="year">\u6bcf\u5e74</option>
+            <option value="quarter">\u6bcf\u5b63</option>
+            <option value="month" selected>\u6bcf\u6708</option>
+            <option value="week">\u6bcf\u5468</option>
+            <option value="day">\u6bcf\u5929</option>
+          </select>
+        </div>
+      </div>
       <canvas id="kz-trend-chart" height="160"></canvas>
+      <div class="kz-status-filters">
+        ${renderStatusFilter(S_DRAFT)}
+        ${renderStatusFilter(S_SUBMITTED)}
+        ${renderStatusFilter(S_APPROVED)}
+      </div>
     </div>
 
-    <!-- 统计卡片 -->
     <div class="kz-stat-grid">
       <div class="kz-stat-card" onclick="KaizenUtils.goto('/kaizen-proposal')">
-        <div class="kz-stat-num">${stats.my_proposals || 0}</div>
-        <div class="kz-stat-label">我的提案</div>
+        <div class="kz-stat-num" id="stat-my-proposals">${stats.my_proposals || 0}</div>
+        <div class="kz-stat-label">\u6211\u7684\u63d0\u6848</div>
       </div>
       <div class="kz-stat-card" style="border-left:3px solid #ff7875;" onclick="KaizenUtils.goto('/kaizen-review')">
-        <div class="kz-stat-num" style="color:#ff4d4f;">${stats.pending_total || 0}</div>
-        <div class="kz-stat-label">待我处理</div>
+        <div class="kz-stat-num" style="color:#ff4d4f;" id="stat-pending-total">${stats.pending_total || 0}</div>
+        <div class="kz-stat-label">\u5f85\u6211\u5904\u7406</div>
       </div>
     </div>
 
-    <!-- 改善提案 -->
-    <div class="kz-section-header">改善提案</div>
-    <div class="kz-menu-grid" style="grid-template-columns: repeat(1,1fr); padding:0;">
-      <div class="kz-item-card" onclick="KaizenUtils.goto('/kaizen-proposal')" style="display:flex;align-items:center;gap:12px;">
-        <div class="kz-menu-icon" style="background:#e6f0ff; min-width:48px;">💡</div>
-        <div>
-          <div style="font-weight:600;">改善提案</div>
-          <div style="font-size:12px;color:#999;">提交您的改善建议</div>
-        </div>
-        <span style="margin-left:auto;color:#ccc;">›</span>
+    <div class="kz-card">
+      <div class="kz-section-title">\u6539\u5584\u63d0\u6848</div>
+      <div class="kz-menu-list">
+        ${menuListItem('/kaizen-proposal', iconProposal(), '\u6211\u7684\u63d0\u6848')}
+        ${menuListItem('/kaizen-proposal-new', iconNew(), '\u65b0\u5efa\u63d0\u6848')}
+        ${menuListItem('/kaizen-review', iconPending(), '\u5f85\u6211\u5904\u7406')}
+        ${menuListItem('/kaizen-report?type=my', iconImprove(), '\u6211\u7684\u6539\u5584')}
       </div>
     </div>
 
-    <!-- 精益推进 -->
-    <div class="kz-section-header">精益推进</div>
-    <div style="background:#fff;border-radius:12px;overflow:hidden;box-shadow:0 2px 12px rgba(0,0,0,0.08);margin-bottom:12px;">
-      ${renderMenuRow('📋', '#fff0f6', '提案审核', '审核员工提案', '/kaizen-review', stats.pending_review)}
-      ${renderMenuRow('📝', '#f0f5ff', '改善方案编制', '制定改善方案', '/kaizen-plan/list', stats.pending_plan)}
-      ${renderMenuRow('🔧', '#f6ffed', '改善实施', '记录实施过程', '/kaizen-implement/list', stats.pending_implement)}
-      ${renderMenuRow('⭐', '#fffbe6', '改善评价', '评价实施效果', '/kaizen-evaluate', stats.pending_evaluate)}
+    <div class="kz-card">
+      <div class="kz-section-title">\u7cbe\u76ca\u5904\u7406</div>
+      <div class="kz-menu-list">
+        ${menuListItem('/kaizen-review', iconReview(), '\u63d0\u6848\u5ba1\u6838')}
+        ${menuListItem('/kaizen-plan', iconPlan(), '\u65b9\u6848\u7f16\u5236')}
+        ${menuListItem('/kaizen-implement', iconImplement(), '\u6539\u5584\u5b9e\u65bd')}
+        ${menuListItem('/kaizen-evaluate', iconEvaluate(), '\u6539\u5584\u8bc4\u4ef7')}
+      </div>
     </div>
 
-    <!-- 精益报表 -->
-    <div class="kz-section-header">精益报表</div>
-    <div style="background:#fff;border-radius:12px;overflow:hidden;box-shadow:0 2px 12px rgba(0,0,0,0.08);margin-bottom:12px;">
-      ${renderMenuRow('📊', '#f9f0ff', '我的改善', '查看个人改善记录', '/kaizen-report', 0)}
-    </div>
-
-    <!-- 精益课堂 -->
-    <div class="kz-section-header">精益课堂</div>
-    <div style="background:#fff;border-radius:12px;overflow:hidden;box-shadow:0 2px 12px rgba(0,0,0,0.08);margin-bottom:24px;">
-      ${renderMenuRow('📚', '#e6fffb', '精益学习', '学习精益知识', '/kaizen-learning', 0)}
-      ${renderMenuRow('🏆', '#fff7e6', '优秀提案', '查看优秀案例', '/kaizen-learning?category=优秀案例', 0)}
+    <div class="kz-card">
+      <div class="kz-section-title">\u7cbe\u76ca\u5b66\u5802</div>
+      <div class="kz-menu-list">
+        ${menuListItem('/kaizen-learning', iconLearning(), '\u7cbe\u76ca\u5b66\u4e60')}
+        ${menuListItem('/kaizen-learning?category=' + encodeURIComponent('\u4f18\u79c0\u6848\u4f8b'), iconExcellent(), '\u4f18\u79c0\u6848\u4f8b')}
+        ${menuListItem('/kaizen-report?type=dept', iconDept(), '\u90e8\u95e8\u7edf\u8ba1')}
+        ${menuListItem('/kaizen-report?type=board', iconBoard(), '\u8fdb\u5ea6\u770b\u677f')}
+      </div>
     </div>
   `;
 }
 
-function renderMenuRow(icon, bg, title, sub, href, badge) {
+function menuListItem(path, iconSvg, label) {
   return `
-    <div class="kz-item-card" onclick="KaizenUtils.goto('${href}')" style="border-radius:0;margin:0;display:flex;align-items:center;gap:12px;border-bottom:1px solid #f0f0f0;">
-      <div class="kz-menu-icon" style="background:${bg}; min-width:48px;">${icon}</div>
-      <div style="flex:1;">
-        <div style="font-weight:600;">${title}</div>
-        <div style="font-size:12px;color:#999;">${sub}</div>
-      </div>
-      ${badge > 0 ? `<span style="background:#ff4d4f;color:#fff;border-radius:10px;padding:2px 8px;font-size:12px;font-weight:600;">${badge}</span>` : ''}
-      <span style="color:#ccc;">›</span>
-    </div>
-  `;
+    <a class="kz-menu-list-item" href="${path}">
+      <span class="kz-menu-list-icon">${iconSvg}</span>
+      <span class="kz-menu-list-label">${label}</span>
+      <span class="kz-menu-list-arrow"><svg width="7" height="12" viewBox="0 0 7 12" fill="none"><path d="M1 1l5 5-5 5" stroke="#c0c0c0" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+    </a>`;
+}
+
+function iconProposal() {
+  return `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>`;
+}
+function iconNew() {
+  return `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>`;
+}
+function iconPending() {
+  return `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>`;
+}
+function iconImprove() {
+  return `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>`;
+}
+function iconReview() {
+  return `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>`;
+}
+function iconPlan() {
+  return `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>`;
+}
+function iconImplement() {
+  return `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>`;
+}
+function iconEvaluate() {
+  return `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>`;
+}
+function iconLearning() {
+  return `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>`;
+}
+function iconExcellent() {
+  return `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="6"/><path d="M15.477 12.89L17 22l-5-3-5 3 1.523-9.11"/></svg>`;
+}
+function iconDept() {
+  return `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></svg>`;
+}
+function iconBoard() {
+  return `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>`;
+}
+
+function renderStatusFilter(status) {
+  const checked = homeState.statusFilters[status] ? 'is-checked' : '';
+  return `<button class="kz-check-filter ${checked}" data-status="${status}">${status}</button>`;
+}
+
+function bindHomeEvents() {
+  document.getElementById('kz-range-select').addEventListener('change', async function() {
+    homeState.rangePreset = this.value;
+    await refreshStats();
+  });
+  document.getElementById('kz-granularity-select').addEventListener('change', async function() {
+    homeState.granularity = this.value;
+    await refreshStats();
+  });
+  document.querySelectorAll('[data-status]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const status = btn.dataset.status;
+      homeState.statusFilters[status] = !homeState.statusFilters[status];
+      btn.classList.toggle('is-checked', homeState.statusFilters[status]);
+      updateChartVisibility();
+    });
+  });
+}
+
+async function refreshStats() {
+  const stats = await fetchHomeStats();
+  latestStats = stats;
+  updateStatsUI(stats);
+  updateChart(stats);
+}
+
+function updateStatsUI(stats) {
+  const a = document.getElementById('stat-my-proposals');
+  const b = document.getElementById('stat-pending-total');
+  if (a) a.textContent = stats.my_proposals || 0;
+  if (b) b.textContent = stats.pending_total || 0;
 }
 
 function initChart(stats) {
   const ctx = document.getElementById('kz-trend-chart');
-  if (!ctx || !stats.chart_data) return;
-
-  // 整理月份和数据
-  const months = [...new Set(stats.chart_data.map(d => d.month))].sort();
-  const statusList = ['待提交','已提交','已立项'];
-  const colors = { '待提交': '#faad14', '已提交': '#1677ff', '已立项': '#52c41a' };
-
-  const datasets = statusList.map(s => ({
-    label: s,
-    data: months.map(m => {
-      const found = stats.chart_data.find(d => d.month === m && d.status === s);
-      return found ? found.cnt : 0;
-    }),
-    borderColor: colors[s],
-    backgroundColor: colors[s] + '22',
-    tension: 0.4,
-    fill: false,
-  }));
-
-  new Chart(ctx, {
+  if (!ctx) return;
+  homeChart = new Chart(ctx, {
     type: 'line',
-    data: { labels: months, datasets },
+    data: buildChartData(stats),
     options: {
       responsive: true,
-      plugins: { legend: { position: 'bottom', labels: { boxWidth: 12, font: { size: 11 } } } },
+      plugins: { legend: { display: false } },
+      elements: { line: { tension: 0 } },
       scales: {
         y: { beginAtZero: true, ticks: { stepSize: 1 } },
-        x: { ticks: { font: { size: 11 } } }
+        x: { ticks: { font: { size: 11 }, autoSkip: true, maxTicksLimit: 8 } }
       }
     }
   });
+  updateChartVisibility();
 }
 
-function bindMenuEvents() {}
+function updateChart(stats) {
+  if (!homeChart) return;
+  homeChart.data = buildChartData(stats);
+  homeChart.update();
+  updateChartVisibility();
+}
+
+function updateChartVisibility() {
+  if (!homeChart) return;
+  homeChart.data.datasets.forEach(ds => {
+    if (Object.prototype.hasOwnProperty.call(homeState.statusFilters, ds.label)) {
+      ds.hidden = !homeState.statusFilters[ds.label];
+    }
+  });
+  homeChart.update();
+}
+
+function buildChartData(stats) {
+  const statusList = [S_DRAFT, S_SUBMITTED, S_APPROVED];
+  const colors = {};
+  colors[S_DRAFT] = '#faad14';
+  colors[S_SUBMITTED] = '#1677ff';
+  colors[S_APPROVED] = '#52c41a';
+
+  const range = getRangeParams();
+  const axis = buildAxis(range.start_date, range.end_date, homeState.granularity);
+  const keys = axis.map(a => a.key);
+  const labels = axis.map(a => a.label);
+
+  const rows = Array.isArray(stats.chart_data) ? stats.chart_data : [];
+  const byStatusAndPeriod = new Map();
+  rows.forEach(r => byStatusAndPeriod.set(`${r.status}@@${r.month}`, Number(r.cnt || 0)));
+
+  const datasets = statusList.map(s => ({
+    label: s,
+    data: keys.map(k => byStatusAndPeriod.get(`${s}@@${k}`) || 0),
+    borderColor: colors[s],
+    backgroundColor: colors[s] + '22',
+    tension: 0,
+    fill: false,
+    pointRadius: 3,
+    pointHoverRadius: 5,
+  }));
+
+  return { labels, datasets };
+}
+
+function buildAxis(startStr, endStr, granularity) {
+  const start = new Date(startStr + 'T00:00:00');
+  const end = new Date(endStr + 'T00:00:00');
+  if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime()) || start > end) {
+    return [{ key: '0', label: '0' }, { key: '1', label: '1' }];
+  }
+  const out = [];
+  const pad2 = n => String(n).padStart(2, '0');
+  if (granularity === 'day') {
+    const d = new Date(start);
+    while (d <= end) {
+      const key = `${d.getFullYear()}-${pad2(d.getMonth()+1)}-${pad2(d.getDate())}`;
+      out.push({ key, label: `${pad2(d.getMonth()+1)}-${pad2(d.getDate())}` });
+      d.setDate(d.getDate() + 1);
+    }
+    return out;
+  }
+  if (granularity === 'week') {
+    const d = new Date(start);
+    d.setDate(d.getDate() - ((d.getDay() + 6) % 7));
+    while (d <= end) {
+      const wk = isoWeekKey(d);
+      out.push({ key: wk, label: wk.slice(5) + '\u5468' });
+      d.setDate(d.getDate() + 7);
+    }
+    return out;
+  }
+  if (granularity === 'year') {
+    let y = start.getFullYear();
+    const yEnd = end.getFullYear();
+    while (y <= yEnd) { out.push({ key: String(y), label: String(y) }); y += 1; }
+    return out;
+  }
+  if (granularity === 'quarter') {
+    let y = start.getFullYear();
+    let q = Math.floor(start.getMonth() / 3) + 1;
+    const endY = end.getFullYear();
+    const endQ = Math.floor(end.getMonth() / 3) + 1;
+    while (y < endY || (y === endY && q <= endQ)) {
+      out.push({ key: `${y}-Q${q}`, label: `${y}Q${q}` });
+      q += 1;
+      if (q > 4) { q = 1; y += 1; }
+    }
+    return out;
+  }
+  let y = start.getFullYear();
+  let m = start.getMonth() + 1;
+  const endY = end.getFullYear();
+  const endM = end.getMonth() + 1;
+  while (y < endY || (y === endY && m <= endM)) {
+    const mm = pad2(m);
+    out.push({ key: `${y}-${mm}`, label: `${y}-${mm}` });
+    m += 1;
+    if (m > 12) { m = 1; y += 1; }
+  }
+  return out;
+}
+
+function isoWeekKey(date) {
+  const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
+  const dayNum = d.getUTCDay() || 7;
+  d.setUTCDate(d.getUTCDate() + 4 - dayNum);
+  const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
+  const weekNo = Math.ceil((((d - yearStart) / 86400000) + 1) / 7);
+  return `${d.getUTCFullYear()}-${String(weekNo).padStart(2, '0')}`;
+}
 </script>
 </body>
 {% endblock %}

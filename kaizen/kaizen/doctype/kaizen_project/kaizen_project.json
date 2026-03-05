@@ -3,7 +3,7 @@
   "module": "Kaizen",
   "doctype": "DocType",
   "naming_rule": "Expression",
-  "autoname": "KZ-.YYYYMMDD.-.##",
+  "autoname": "改善-.YYYYMM.-.###",
   "description": "改善项目 - 审核通过后正式立项的精益改善",
   "title_field": "title",
   "fields": [

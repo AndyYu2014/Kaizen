@@ -9,7 +9,7 @@ app_license = "MIT"
 add_to_apps_screen = [
     {
         "name": "kaizen",
-        "logo": "/assets/kaizen/images/kaizen-logo.png",
+        "logo": "/assets/kaizen/images/kaizen-icon.svg",
         "title": "精益",
         "route": "/kaizen-home",
     }

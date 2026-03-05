@@ -8,19 +8,26 @@ def has_website_permission(doc, ptype, user, verbose=False):
     return True
 
 @frappe.whitelist(allow_guest=False)
-def get_home_stats(start_date=None, end_date=None, granularity="month"):
+def get_home_stats():
     user = frappe.session.user
+    three_months_ago = add_months(nowdate(), -3)
 
-    end_date = end_date or nowdate()
-    start_date = start_date or add_months(end_date, -3)
+    # 折线图数据
+    chart_data = frappe.db.sql("""
+        SELECT DATE_FORMAT(creation, '%%Y-%%m') as month,
+               status, COUNT(*) as cnt
+        FROM `tabKaizen Proposal`
+        WHERE creation >= %(start)s AND status != '已取消'
+        GROUP BY month, status ORDER BY month ASC
+    """, {"start": three_months_ago}, as_dict=True)
 
-    chart_data = _get_chart_data(start_date, end_date, granularity)
-
+    # 我的提案数
     my_proposals = frappe.db.count("Kaizen Proposal", {
         "submitted_by": user,
         "status": ["not in", ["已立项", "已取消"]]
     })
 
+    # 我关联的项目数
     my_proposal_names = frappe.db.get_all(
         "Kaizen Proposal",
         filters={"submitted_by": user},
@@ -33,6 +40,7 @@ def get_home_stats(start_date=None, end_date=None, granularity="month"):
             "status": ["not in", ["已关闭", "已取消"]]
         })
 
+    # 待处理数量
     pending_review = frappe.db.count("Kaizen Proposal", {"status": "已提交"})
     pending_plan = frappe.db.sql("""
         SELECT COUNT(DISTINCT kp.name) FROM `tabKaizen Project` kp
@@ -57,34 +65,6 @@ def get_home_stats(start_date=None, end_date=None, granularity="month"):
         "pending_evaluate": pending_evaluate,
     }
 
-
-def _get_chart_data(start_date, end_date, granularity):
-    granularity = (granularity or "month").lower()
-    if granularity not in ("year", "quarter", "month", "week", "day"):
-        granularity = "month"
-
-    dt_expr = "COALESCE(submitted_date, creation)"
-    if granularity == "year":
-        period_expr = f"DATE_FORMAT({dt_expr}, '%%Y')"
-    elif granularity == "quarter":
-        period_expr = f"CONCAT(YEAR({dt_expr}), '-Q', QUARTER({dt_expr}))"
-    elif granularity == "week":
-        period_expr = f"DATE_FORMAT({dt_expr}, '%%Y-%%u')"
-    elif granularity == "day":
-        period_expr = f"DATE_FORMAT({dt_expr}, '%%Y-%%m-%%d')"
-    else:
-        period_expr = f"DATE_FORMAT({dt_expr}, '%%Y-%%m')"
-
-    sql = f"""
-        SELECT {period_expr} as month, status, COUNT(*) as cnt
-        FROM `tabKaizen Proposal`
-        WHERE {dt_expr} >= %(start)s AND {dt_expr} <= %(end)s
-          AND status IN ('待提交','已提交','已立项')
-        GROUP BY month, status
-        ORDER BY month ASC
-    """
-
-    return frappe.db.sql(sql, {"start": start_date, "end": end_date}, as_dict=True)
 @frappe.whitelist(allow_guest=False)
 def get_my_proposals(include_closed=0):
     user = frappe.session.user
@@ -112,26 +92,11 @@ def get_my_proposals(include_closed=0):
 
 @frappe.whitelist(allow_guest=False)
 def create_proposal(data):
-    return save_proposal(data)
-
-
-@frappe.whitelist(allow_guest=False)
-def save_proposal(data):
     if isinstance(data, str):
         import json
         data = json.loads(data)
     from frappe.utils import now_datetime
-
-    name = data.get("name")
-    if name:
-        doc = frappe.get_doc("Kaizen Proposal", name)
-        if doc.submitted_by != frappe.session.user and "System Manager" not in frappe.get_roles():
-            frappe.throw("无权限修改该提案")
-    else:
-        doc = frappe.new_doc("Kaizen Proposal")
-        doc.submitted_by = frappe.session.user
-        doc.status = "待提交"
-
+    doc = frappe.new_doc("Kaizen Proposal")
     doc.kaizen_type = data.get("kaizen_type")
     doc.production_line = data.get("production_line")
     doc.equipment = data.get("equipment")
@@ -140,14 +105,14 @@ def save_proposal(data):
     doc.location_remark = data.get("location_remark")
     doc.phenomenon = data.get("phenomenon")
     doc.suggestion = data.get("suggestion")
-
+    doc.submitted_by = frappe.session.user
+    doc.status = "待提交"
+    doc.insert()
     if data.get("submit_now"):
         doc.status = "已提交"
         doc.submitted_date = now_datetime()
-
-    doc.save(ignore_permissions=True)
+        doc.save()
     return doc.name
-
 
 @frappe.whitelist(allow_guest=False)
 def submit_proposal(proposal_name):
@@ -157,19 +122,6 @@ def submit_proposal(proposal_name):
     doc.submitted_date = now_datetime()
     doc.save()
     return {"success": True}
-
-@frappe.whitelist(allow_guest=False)
-def get_review_proposal(name):
-    if not name:
-        return None
-    rows = frappe.get_all(
-        "Kaizen Proposal",
-        filters={"name": name},
-        fields=["name", "status", "kaizen_type", "phenomenon", "suggestion", "submitted_by", "submitted_date"],
-        limit=1,
-        ignore_permissions=True,
-    )
-    return rows[0] if rows else None
 
 @frappe.whitelist(allow_guest=False)
 def get_pending_review_proposals():
@@ -353,35 +305,3 @@ def get_type_analysis():
         FROM `tabKaizen Proposal`
         GROUP BY kaizen_type ORDER BY proposal_count DESC
     """, as_dict=True)
-
-
-@frappe.whitelist(allow_guest=False)
-def get_reference_options():
-    return {
-        "production_line": [d.name for d in frappe.get_all("Workstation", fields=["name"], limit=200, order_by="modified desc")],
-        "equipment": [d.name for d in frappe.get_all("Asset", fields=["name"], limit=200, order_by="modified desc")],
-        "warehouse": [d.name for d in frappe.get_all("Warehouse", fields=["name"], limit=200, order_by="modified desc")],
-        "item": [d.name for d in frappe.get_all("Item", fields=["name"], limit=200, order_by="modified desc")],
-    }
-
-
-@frappe.whitelist(allow_guest=False)
-def withdraw_proposal(proposal_name, reason=None):
-    doc = frappe.get_doc("Kaizen Proposal", proposal_name)
-    if doc.submitted_by != frappe.session.user and "System Manager" not in frappe.get_roles():
-        frappe.throw("无权限修改该提案")
-    doc.status = "待提交"
-    if reason:
-        doc.review_comment = f"处理原因: {reason}"
-    doc.save(ignore_permissions=True)
-    return {"success": True}
-
-
-@frappe.whitelist(allow_guest=False)
-def return_proposal(proposal_name, reason=None):
-    doc = frappe.get_doc("Kaizen Proposal", proposal_name)
-    doc.status = "待提交"
-    if reason:
-        doc.review_comment = f"处理原因: {reason}"
-    doc.save(ignore_permissions=True)
-    return {"success": True}

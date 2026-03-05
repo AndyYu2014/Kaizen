@@ -3,7 +3,7 @@
   "module": "Kaizen",
   "doctype": "DocType",
   "naming_rule": "Expression",
-  "autoname": "KP-.YYYYMMDD.-.##",
+  "autoname": "提案-.YYYYMM.-.###",
   "description": "改善提案 - 员工提交的改善建议",
   "title_field": "name",
   "fields": [

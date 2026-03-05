@@ -427,3 +427,200 @@ body.kaizen-page {
 .kz-report-table tr:nth-child(even) td {
   background: #fafafa;
 }
+
+
+/* ??? ????/????? ??? */
+.kz-chart-head { display: flex; flex-direction: column; gap: 8px; }
+.kz-chart-actions { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.kz-chip-group { display: flex; gap: 6px; flex-wrap: wrap; }
+.kz-chip {
+  padding: 6px 10px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: #fff;
+  font-size: 12px;
+  cursor: pointer;
+  color: var(--text-main);
+}
+.kz-chip.active { background: var(--primary); color: #fff; border-color: var(--primary); }
+.kz-chip-primary { background: var(--primary); color: #fff; border-color: var(--primary); }
+.kz-range-panel { display: none; margin: 8px 0 4px; }
+.kz-range-panel.show { display: block; }
+.kz-range-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+
+.kz-status-filters { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px; }
+.kz-check-filter {
+  position: relative;
+  padding: 6px 10px 6px 28px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: #fff;
+  font-size: 12px;
+  color: var(--text-main);
+  cursor: pointer;
+}
+.kz-check-filter::before {
+  content: "";
+  position: absolute;
+  left: 10px;
+  top: 50%;
+  width: 10px;
+  height: 10px;
+  border: 1.5px solid #cfcfcf;
+  border-radius: 3px;
+  transform: translateY(-50%);
+  background: #fff;
+}
+.kz-check-filter.is-checked::before {
+  content: "✓";
+  font-size: 10px;
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--primary);
+  border-color: var(--primary);
+}
+
+
+.kz-menu-icon--plain {
+  width: 28px;
+  height: 28px;
+  border-radius: 0;
+  background: transparent;
+  font-size: 18px;
+}
+
+/* ??? ???????? ??? */
+.kz-page-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  background: #fff;
+  border-bottom: 1px solid var(--border);
+}
+.kz-page-title { font-size: 16px; font-weight: 600; }
+.kz-header-actions { display: flex; gap: 8px; }
+.kz-btn-sm { padding: 8px 12px; border-radius: 10px; font-size: 13px; }
+.kz-btn-ghost {
+  background: #fff;
+  border: 1px solid var(--border);
+  color: var(--text-main);
+}
+
+.kz-view-tabs { display: flex; gap: 8px; flex-wrap: wrap; }
+.kz-tab {
+  padding: 6px 12px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: #fff;
+  font-size: 12px;
+  cursor: pointer;
+}
+.kz-tab.active { background: var(--primary); color: #fff; border-color: var(--primary); }
+
+/* ??? ????? ??? */
+.kz-media-panel {
+  background: #fafafa;
+  border: 1px dashed var(--border);
+  border-radius: var(--radius-sm);
+  padding: 12px;
+}
+.kz-media-title { font-size: 14px; font-weight: 600; margin-bottom: 8px; }
+.kz-media-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.kz-media-btn {
+  background: #fff;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 10px 8px;
+  font-size: 12px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+}
+.kz-media-btn span { font-size: 18px; }
+.kz-media-list { margin-top: 8px; font-size: 12px; color: var(--text-sub); }
+
+
+/* ─── 图表卡片 - 改善动态 ─── */
+.kz-chart-card { padding: 16px; }
+.kz-chart-title-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+.kz-chart-heading {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text-main);
+}
+.kz-chart-selectors {
+  display: flex;
+  gap: 8px;
+}
+.kz-select {
+  appearance: none;
+  -webkit-appearance: none;
+  background: #f5f7fa url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%23999' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E") no-repeat right 8px center;
+  background-size: auto;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 5px 26px 5px 10px;
+  font-size: 12px;
+  color: var(--text-main);
+  cursor: pointer;
+  min-width: 72px;
+}
+.kz-select:focus { outline: none; border-color: var(--primary); }
+
+/* ─── 功能分组纵向列表 ─── */
+.kz-section-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-sub);
+  margin-bottom: 4px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--border);
+}
+.kz-menu-list {
+  display: flex;
+  flex-direction: column;
+}
+.kz-menu-list-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 4px;
+  border-bottom: 1px solid var(--border);
+  text-decoration: none;
+  color: var(--text-main);
+  cursor: pointer;
+  transition: background 0.12s;
+}
+.kz-menu-list-item:last-child { border-bottom: none; }
+.kz-menu-list-item:active { background: #f5f7fa; border-radius: 8px; }
+.kz-menu-list-icon {
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--primary-light);
+  border-radius: 8px;
+  color: var(--primary);
+  flex-shrink: 0;
+}
+.kz-menu-list-label {
+  flex: 1;
+  font-size: 14px;
+  color: var(--text-main);
+}
+.kz-menu-list-arrow {
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+}

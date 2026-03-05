@@ -4,49 +4,59 @@
 <body class="kaizen-page">
 <link rel="stylesheet" href="/assets/kaizen/css/kaizen.css">
 
-<div class="kz-navbar">
-  <span class="kz-navbar-back" onclick="KaizenUtils.goto('/kaizen-home')">‹ 精益</span>
-  <span class="kz-navbar-title">改善提案</span>
-  <span class="kz-navbar-action" onclick="KaizenUtils.goto('/kaizen-proposal-new')">+ 新建</span>
+<div class="kz-page-header">
+  <div class="kz-page-title">改善提案</div>
+  <div class="kz-header-actions">
+    <button class="kz-btn kz-btn-primary kz-btn-sm" onclick="KaizenUtils.goto('/kaizen-proposal-new')">+ 新建</button>
+  </div>
 </div>
 
 <div style="padding:12px 16px;">
-  <!-- 筛选 -->
-  <div style="background:#fff;border-radius:10px;padding:10px 14px;margin-bottom:12px;display:flex;gap:8px;overflow-x:auto;">
-    <button class="kz-filter-btn active" data-filter="active" onclick="setFilter('active',this)">进行中</button>
-    <button class="kz-filter-btn" data-filter="all" onclick="setFilter('all',this)">全部</button>
+  <div style="background:#fff;border-radius:10px;padding:10px 14px;margin-bottom:12px;display:flex;flex-direction:column;gap:10px;">
+    <div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:space-between;">
+      <div class="kz-view-tabs">
+        <button class="kz-tab" data-filter="all" onclick="setFilter('all',this)">全部</button>
+        <button class="kz-tab active" data-filter="active" onclick="setFilter('active',this)">进行中</button>
+      </div>
+      <div class="kz-view-tabs">
+        <button class="kz-tab active" data-view="card" onclick="setView('card',this)">卡片视图</button>
+        <button class="kz-tab" data-view="list" onclick="setView('list',this)">列表视图</button>
+        <button class="kz-tab" data-view="gantt" onclick="setView('gantt',this)">甘特视图</button>
+        <button class="kz-tab" data-view="calendar" onclick="setView('calendar',this)">日历视图</button>
+      </div>
+    </div>
   </div>
   <div id="proposal-list"><div class="kz-loading"><div class="kz-spinner"></div><div>加载中...</div></div></div>
 </div>
 
-<style>
-.kz-filter-btn {
-  padding: 6px 14px; border-radius: 20px; border: 1px solid #e8e8e8;
-  background: #fff; font-size: 13px; cursor: pointer; white-space: nowrap;
-}
-.kz-filter-btn.active { background: #1677ff; color: #fff; border-color: #1677ff; }
-</style>
-
-<script src="/assets/kaizen/js/kaizen.js"></script>
+<script src="/assets/kaizen/js/kaizen.js?v=20260226"></script>
 <script>
 let currentFilter = 'active';
+let currentView = 'card';
 
-async function loadList() {
+async function loadList(retried = false) {
   const list = document.getElementById('proposal-list');
   KaizenUtils.showLoading(list);
   try {
     const include_closed = currentFilter === 'all' ? 1 : 0;
-    const data = await KaizenUtils.call('kaizen.kaizen.api.kaizen_api.get_my_proposals', { include_closed });
-    if (!data || !data.length) {
+    let data = await KaizenUtils.call('kaizen.kaizen.api.kaizen_api.get_my_proposals', { include_closed });
+    if (!Array.isArray(data)) data = [];
+    if (!data.length) {
       list.innerHTML = `<div class="kz-empty">
-        <div class="kz-empty-icon">💡</div>
-        <div class="kz-empty-text">还没有提案，点击右上角新建</div>
+        <div class="kz-empty-icon">&#x1F4CB;</div>
+        <div class="kz-empty-text">\u5f53\u524d\u6ca1\u6709\u63d0\u6848</div>
+        <div style="margin-top:12px;">
+          <button class="kz-btn kz-btn-primary kz-btn-sm" onclick="KaizenUtils.goto('/kaizen-proposal-new')">+ \u65b0\u5efa\u63d0\u6848</button>
+        </div>
       </div>`;
       return;
     }
     list.innerHTML = data.map(p => renderProposalCard(p)).join('');
   } catch(e) {
-    KaizenUtils.showEmpty(list, '加载失败，请刷新');
+    if (!retried) {
+      return loadList(true);
+    }
+    KaizenUtils.showEmpty(list, '\u52a0\u8f7d\u5931\u8d25\uff0c\u8bf7\u5237\u65b0');
   }
 }
 
@@ -54,7 +64,7 @@ function renderProposalCard(p) {
   const statusCls = KaizenUtils.statusClass(p.status);
   const projStatusCls = p.project_status ? KaizenUtils.statusClass(p.project_status) : '';
   return `
-    <div class="kz-item-card" onclick="KaizenUtils.goto('/kaizen-proposal/${p.name}')">
+    <div class="kz-item-card" onclick="KaizenUtils.goto('/kaizen-proposal/'+encodeURIComponent(p.name))">
       <div class="kz-item-card-row1">
         <span class="kz-item-no">${p.name}</span>
         <span class="kz-tag ${statusCls}">${p.status}</span>
@@ -77,9 +87,18 @@ function renderProposalCard(p) {
 
 function setFilter(filter, btn) {
   currentFilter = filter;
-  document.querySelectorAll('.kz-filter-btn').forEach(b => b.classList.remove('active'));
+  document.querySelectorAll('[data-filter]').forEach(b => b.classList.remove('active'));
   btn.classList.add('active');
   loadList();
+}
+
+function setView(view, btn) {
+  currentView = view;
+  document.querySelectorAll('[data-view]').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  if (view !== 'card') {
+    KaizenUtils.toast('该视图暂未开放');
+  }
 }
 
 loadList();

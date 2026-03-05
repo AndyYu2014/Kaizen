@@ -4,66 +4,101 @@
 <body class="kaizen-page">
 <link rel="stylesheet" href="/assets/kaizen/css/kaizen.css">
 
-<div class="kz-navbar">
-  <span class="kz-navbar-back" onclick="history.back()">‹ 返回</span>
-  <span class="kz-navbar-title" id="page-title">新建改善提案</span>
-  <span style="width:48px"></span>
+<div class="kz-navbar" style="gap:8px;">
+  <span class="kz-navbar-back" onclick="history.back()">&#x2039; &#x8FD4;&#x56DE;</span>
+  <span class="kz-navbar-title" id="page-title">&#x65B0;&#x5EFA;&#x6539;&#x5584;&#x63D0;&#x6848;</span>
+  <span style="display:flex;gap:8px;align-items:center;min-width:54px;justify-content:flex-end;">
+    <span class="kz-navbar-action" id="btn-submit" onclick="submitProposal()">&#x63D0;&#x4EA4;</span>
+    <span class="kz-navbar-action" id="btn-withdraw" onclick="withdrawProposal()" style="display:none;">&#x64A4;&#x56DE;</span>
+  </span>
 </div>
 
-<div style="padding:12px 16px 100px;" id="form-content">
+
+<div style="padding:12px 16px 90px;" id="form-content">
   <div class="kz-loading"><div class="kz-spinner"></div><div>加载中...</div></div>
 </div>
 
-<!-- 底部按钮固定 -->
-<div style="position:fixed;bottom:0;left:0;right:0;background:#fff;padding:12px 16px;border-top:1px solid #e8e8e8;display:flex;gap:10px;">
-  <button class="kz-btn kz-btn-outline" onclick="saveProposal(false)" style="flex:1;">保存草稿</button>
-  <button class="kz-btn kz-btn-primary" onclick="saveProposal(true)" style="flex:1;">提交</button>
+<div style="position:fixed;bottom:0;left:0;right:0;background:#fff;padding:12px 16px;border-top:1px solid #e8e8e8;">
+  <button class="kz-btn kz-btn-primary" onclick="saveProposal(false)">保存</button>
 </div>
 
-<script src="/assets/kaizen/js/kaizen.js"></script>
+<script src="/assets/kaizen/js/kaizen.js?v=20260226"></script>
 <script>
 let kaizenTypes = [];
 let proposalName = null;
 let existingData = null;
+let refOptions = { production_line: [], equipment: [], warehouse: [], item: [] };
 
-// 解析URL参数
 const urlParts = window.location.pathname.split('/');
 const lastPart = urlParts[urlParts.length - 1];
 if (lastPart && lastPart !== 'kaizen-proposal-new') {
-  proposalName = lastPart;
+  proposalName = decodeURIComponent(lastPart);
 }
 
 async function init() {
   const container = document.getElementById('form-content');
   try {
     kaizenTypes = await KaizenUtils.call('kaizen.kaizen.api.kaizen_api.get_kaizen_types');
+    refOptions = await KaizenUtils.call('kaizen.kaizen.api.kaizen_api.get_reference_options');
     if (proposalName) {
       document.getElementById('page-title').textContent = '改善提案详情';
-      existingData = await frappe.call({
-        method: 'frappe.client.get',
-        args: { doctype: 'Kaizen Proposal', name: proposalName }
-      });
-      existingData = existingData.message;
+      existingData = await KaizenUtils.call('frappe.client.get', { doctype: 'Kaizen Proposal', name: proposalName });
+      if (!existingData) { throw new Error('提案“' + proposalName + '”未找到'); }
     }
     container.innerHTML = renderForm(existingData);
-  } catch(e) {
-    container.innerHTML = '<div class="kz-empty">⚠️ 加载失败</div>';
+    const nameInput = document.getElementById('f-name-template');
+    if (nameInput) {
+      if (existingData) {
+        if (existingData.name) { nameInput.value = existingData.name; }
+      }
+    }
+    KaizenUtils.initMediaInput('kz-media-input');
+    updateHeaderActions(existingData);
+  } catch (e) {
+    container.innerHTML = '<div class=kz-empty>' + (e ? (e.message ? e.message : '加载失败') : '加载失败') + '</div>';
   }
+}
+
+function updateHeaderActions(d) {
+  const submitBtn = document.getElementById('btn-submit');
+  const withdrawBtn = document.getElementById('btn-withdraw');
+  if (d && d.status === '已提交') {
+    withdrawBtn.style.display = 'inline-flex';
+  } else {
+    withdrawBtn.style.display = 'none';
+  }
+  if (d && d.status && d.status !== '待提交') {
+    submitBtn.disabled = true;
+    submitBtn.style.opacity = 0.6;
+  }
+}
+
+function mapTypeName(name) {
+  return name === '成本改善' ? '设计工艺改善' : name;
+}
+
+function buildOptions(list, selected) {
+  const items = Array.from(new Set([...(list || []), ...(selected ? [selected] : [])]));
+  return items.map(v => `<option value="${v}" ${v === selected ? 'selected' : ''}>${v}</option>`).join('');
 }
 
 function renderForm(data) {
   const d = data || {};
-  const typeOptions = kaizenTypes.map(t =>
-    `<option value="${t.name}" ${d.kaizen_type === t.name ? 'selected' : ''}>${t.type_name}</option>`
+  const typeOptions = (kaizenTypes || []).map(t =>
+    `<option value="${t.name}" ${d.kaizen_type === t.name ? 'selected' : ''}>${mapTypeName(t.type_name || t.name)}</option>`
   ).join('');
 
   const readonly = d.status && d.status !== '待提交' ? 'disabled' : '';
-  const showCancel = d.status === '待提交' || d.status === '已提交';
 
   return `
-    <!-- 精益类型 -->
     <div class="kz-form-section">
       <div class="kz-form-section-title">基本信息</div>
+      <div class=kz-form-item>
+        <div class=kz-form-label>提案编号(模板)</div>
+        <div class=kz-form-control>
+          <input id=f-name-template class=kz-input type=text readonly placeholder=提案-YYYYMM- value=>
+        </div>
+      </div>
       <div class="kz-form-item">
         <div class="kz-form-label required">精益类型</div>
         <div class="kz-form-control">
@@ -75,73 +110,91 @@ function renderForm(data) {
       </div>
     </div>
 
-    <!-- 关联位置 -->
     <div class="kz-form-section">
-      <div class="kz-form-section-title">关联位置（可选）</div>
+      <div class="kz-form-section-title">关联位置（至少选择一项）</div>
       <div class="kz-form-item">
         <div class="kz-form-label">产线</div>
         <div class="kz-form-control">
-          <input id="f-line" class="kz-input" type="text" placeholder="输入产线名称" value="${d.production_line || ''}" ${readonly}>
+          <select id="f-line" class="kz-select" ${readonly}>
+            <option value="">请选择产线</option>
+            ${buildOptions(refOptions.production_line, d.production_line)}
+          </select>
         </div>
       </div>
       <div class="kz-form-item">
         <div class="kz-form-label">设备</div>
         <div class="kz-form-control">
-          <input id="f-equipment" class="kz-input" type="text" placeholder="输入设备名称" value="${d.equipment || ''}" ${readonly}>
+          <select id="f-equipment" class="kz-select" ${readonly}>
+            <option value="">请选择设备</option>
+            ${buildOptions(refOptions.equipment, d.equipment)}
+          </select>
         </div>
       </div>
       <div class="kz-form-item">
         <div class="kz-form-label">仓库</div>
         <div class="kz-form-control">
-          <input id="f-warehouse" class="kz-input" type="text" placeholder="输入仓库名称" value="${d.warehouse || ''}" ${readonly}>
+          <select id="f-warehouse" class="kz-select" ${readonly}>
+            <option value="">请选择仓库</option>
+            ${buildOptions(refOptions.warehouse, d.warehouse)}
+          </select>
         </div>
       </div>
       <div class="kz-form-item">
         <div class="kz-form-label">物料</div>
         <div class="kz-form-control">
-          <input id="f-item" class="kz-input" type="text" placeholder="输入物料编号/名称" value="${d.item || ''}" ${readonly}>
+          <select id="f-item" class="kz-select" ${readonly}>
+            <option value="">请选择物料</option>
+            ${buildOptions(refOptions.item, d.item)}
+          </select>
         </div>
       </div>
       <div class="kz-form-item">
-        <div class="kz-form-label">其他备注</div>
+        <div class="kz-form-label">其他</div>
         <div class="kz-form-control">
-          <textarea id="f-location-remark" class="kz-textarea" style="min-height:60px;" placeholder="可语音输入，微信自动转文字" ${readonly}>${d.location_remark || ''}</textarea>
+          <textarea id="f-location-remark" class="kz-textarea" style="min-height:60px;" ${readonly}>${d.location_remark || ''}</textarea>
         </div>
       </div>
     </div>
 
-    <!-- 待改善现象 -->
     <div class="kz-form-section">
       <div class="kz-form-section-title">提案内容</div>
       <div class="kz-form-item" style="flex-direction:column;align-items:stretch;">
-        <div class="kz-form-label required" style="padding-top:0;margin-bottom:8px;">待改善现象</div>
-        <textarea id="f-phenomenon" class="kz-textarea" placeholder="请描述您发现的问题或待改善现象（可语音输入）" ${readonly}>${d.phenomenon || ''}</textarea>
-        ${!readonly ? `
-        <div class="kz-upload-area" style="margin-top:8px;" onclick="document.getElementById('f-attach').click()">
-          <div class="kz-upload-icon">📷</div>
-          <div class="kz-upload-hint">点击添加图片/视频/音频</div>
-          <input type="file" id="f-attach" style="display:none" accept="image/*,video/*,audio/*" multiple>
-        </div>` : ''}
+        <div class="kz-form-label required" style="padding-top:0;margin-bottom:8px;">什么问题？</div>
+        <textarea id="f-phenomenon" class="kz-textarea" placeholder="请描述您发现的问题或待改善现象" ${readonly}>${d.phenomenon || ''}</textarea>
+        <div class="kz-media-panel" id="kz-media-input" style="margin-top:8px;">
+          <div class="kz-media-title">添加材料</div>
+          <div class="kz-media-grid">
+            <button type="button" class="kz-media-btn" data-media="photo" onclick="document.getElementById('media-photo').click()"><span>📷</span>照片</button>
+            <button type="button" class="kz-media-btn" data-media="video" onclick="document.getElementById('media-video').click()"><span>🎥</span>视频</button>
+            <button type="button" class="kz-media-btn" data-media="audio" onclick="document.getElementById('media-audio').click()"><span>🎙️</span>音频</button>
+            <button type="button" class="kz-media-btn" data-media="location"><span>📍</span>位置</button>
+            <button type="button" class="kz-media-btn" data-media="file" onclick="document.getElementById('media-file').click()"><span>📎</span>文件</button>
+            <button type="button" class="kz-media-btn" data-media="people"><span>👤</span>人员</button>
+          </div>
+          <input type="file" id="media-photo" data-media-input="photo" accept="image/*" multiple style="display:none" />
+          <input type="file" id="media-video" data-media-input="video" accept="video/*" multiple style="display:none" />
+          <input type="file" id="media-audio" data-media-input="audio" accept="audio/*" multiple style="display:none" />
+          <input type="file" id="media-file" data-media-input="file" multiple style="display:none" />
+          <div class="kz-media-list">未选择任何内容</div>
+        </div>
       </div>
       <div class="kz-form-item" style="flex-direction:column;align-items:stretch;">
         <div class="kz-form-label" style="padding-top:0;margin-bottom:8px;">改善建议方案</div>
-        <textarea id="f-suggestion" class="kz-textarea" placeholder="您有什么改善建议？（可选，可语音输入）" ${readonly}>${d.suggestion || ''}</textarea>
+        <textarea id="f-suggestion" class="kz-textarea" placeholder="您有什么改善建议？（可选）" ${readonly}>${d.suggestion || ''}</textarea>
       </div>
     </div>
-
-    <!-- 审核信息展示（只读） -->
-    ${d.status && d.status !== '待提交' ? `
-    <div class="kz-form-section">
-      <div class="kz-form-section-title">审核信息</div>
-      <div class="kz-form-item"><div class="kz-form-label">状态</div>
-        <div><span class="kz-tag ${KaizenUtils.statusClass(d.status)}">${d.status}</span></div></div>
-      ${d.urgency ? `<div class="kz-form-item"><div class="kz-form-label">紧迫性</div><div>${d.urgency}</div></div>` : ''}
-      ${d.economic_value ? `<div class="kz-form-item"><div class="kz-form-label">经济性</div><div>${d.economic_value}</div></div>` : ''}
-      ${d.quality_impact ? `<div class="kz-form-item"><div class="kz-form-label">质量影响</div><div>${d.quality_impact}</div></div>` : ''}
-      ${d.kaizen_project ? `<div class="kz-form-item"><div class="kz-form-label">改善项目</div>
-        <div style="color:#1677ff;cursor:pointer;" onclick="KaizenUtils.goto('/kaizen-plan/${d.kaizen_project}')">${d.kaizen_project}</div></div>` : ''}
-    </div>` : ''}
   `;
+}
+
+function validateLocation() {
+  const fields = [
+    document.getElementById('f-line')?.value,
+    document.getElementById('f-equipment')?.value,
+    document.getElementById('f-warehouse')?.value,
+    document.getElementById('f-item')?.value,
+    document.getElementById('f-location-remark')?.value,
+  ];
+  return fields.some(v => v && v.trim());
 }
 
 async function saveProposal(submitNow) {
@@ -150,8 +203,10 @@ async function saveProposal(submitNow) {
 
   if (!typeVal) { KaizenUtils.toast('请选择精益类型'); return; }
   if (!phenomenon || !phenomenon.trim()) { KaizenUtils.toast('请填写待改善现象'); return; }
+  if (!validateLocation()) { KaizenUtils.toast('关联位置至少选择一项'); return; }
 
   const data = {
+    name: proposalName || undefined,
     kaizen_type: typeVal,
     production_line: document.getElementById('f-line')?.value || '',
     equipment: document.getElementById('f-equipment')?.value || '',
@@ -161,14 +216,34 @@ async function saveProposal(submitNow) {
     phenomenon: phenomenon,
     suggestion: document.getElementById('f-suggestion')?.value || '',
     submit_now: submitNow ? 1 : 0,
+    media: KaizenUtils.getMediaInputData('kz-media-input')
   };
 
   try {
-    const name = await KaizenUtils.call('kaizen.kaizen.api.kaizen_api.create_proposal', { data: JSON.stringify(data) });
-    KaizenUtils.toast(submitNow ? '提案已提交！' : '草稿已保存');
-    setTimeout(() => KaizenUtils.goto('/kaizen-proposal'), 1200);
+    const name = await KaizenUtils.call('kaizen.kaizen.api.kaizen_api.save_proposal', { data: JSON.stringify(data) });
+    proposalName = name ? name : proposalName;
+    const idInput = document.getElementById('f-name-template');
+    if (idInput) { idInput.value = proposalName ? proposalName : ''; }
+    KaizenUtils.toast((submitNow ? '提案已提交：' : '草稿已保存：') + (proposalName ? proposalName : ''));
+    if (submitNow) setTimeout(() => KaizenUtils.goto('/kaizen-proposal'), 1200);
   } catch(e) {
     KaizenUtils.toast('保存失败：' + (e.message || '请重试'));
+  }
+}
+
+async function submitProposal() {
+  await saveProposal(true);
+}
+
+async function withdrawProposal() {
+  if (!proposalName) return;
+  const reason = prompt('请输入撤回原因（可选）');
+  try {
+    await KaizenUtils.call('kaizen.kaizen.api.kaizen_api.withdraw_proposal', { proposal_name: proposalName, reason });
+    KaizenUtils.toast('已撤回');
+    setTimeout(() => KaizenUtils.goto('/kaizen-proposal'), 1200);
+  } catch(e) {
+    KaizenUtils.toast('撤回失败');
   }
 }
 
